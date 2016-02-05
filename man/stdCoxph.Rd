@@ -1,0 +1,155 @@
+\name{stdCoxph}
+\alias{stdCoxph}
+%- Also NEED an '\alias' for EACH other topic documented here.
+\title{
+%%  ~~function to do ... ~~
+Regression standardization in Cox proportional hazards models
+}
+\description{
+%%  ~~ A concise (1-5 lines) description of what the function does. ~~
+\code{stdCoxph} performs regression standardization in Cox proportional hazards models,
+at specified values of the exposure, over the sample covariate distribution.
+Let \eqn{T}, \eqn{X}, and \eqn{Z} be the survival outcome, the exposure, and a
+vector of covariates, respectively. \code{stdCoxph} uses a fitted Cox 
+proportional hazards model to estimate the standardized 
+survival function \eqn{\theta(t,x)=E\{S(t|X=x,Z)\}}, where \eqn{t} is a specific value of \eqn{T}, 
+\eqn{x} is a specific value of \eqn{X}, and the expectation is over the marginal 
+distribution of \eqn{Z}.     
+}
+\usage{
+stdCoxph(fit, data, X, x, t, clusters)
+}
+%- maybe also 'usage' for other objects documented here.
+\arguments{
+  \item{fit}{
+%%     ~~Describe \code{formula} here~~
+an object of class \code{"coxph"}, as returned by the \code{coxph} function 
+  in the \code{survival} package, but without special terms \code{strata}, \code{cluster},
+  or \code{tt}.  
+}
+  \item{data}{
+%%     ~~Describe \code{data} here~~
+a data frame containing the variables in the model. This should be the same 
+data frame as was used to fit the model in \code{fit}.
+}
+  \item{X}{
+%%     ~~Describe \code{X} here~~
+a string containing the name of the exposure variable \eqn{X} in \code{data}. 
+}
+  \item{x}{
+%%     ~~Describe \code{x} here~~
+an optional vector containing the specific values of \eqn{X} at which to estimate 
+the standardized survival function. If \eqn{X} is binary (0/1) or
+a factor, then \code{x} defaults to all values of \eqn{X}. If \eqn{X} is numeric,
+then \code{x} defaults to the mean of \eqn{X}. 
+}
+  \item{t}{
+%%     ~~Describe \code{t} here~~
+an optional vector containing the specific values of \eqn{T} at which to estimate 
+the standardized survival function. It defaults to all the observed event times
+in \code{data}. 
+}
+  \item{clusters}{
+%%     ~~Describe \code{clusters} here~~
+an optional vector of cluster identification numbers to be used in the fitting process when data are clustered. 
+Should be NULL or a numeric vector.
+}
+
+}
+\details{
+%%  ~~ If necessary, more details than the description above ~~
+\code{stdCoxph} assumes that a Cox proportional hazards model 
+\deqn{\lambda(t|X,Z)=\lambda_0(t)exp\{h(X,Z;\beta)\}}
+has been fitted. Breslow's 
+estimator of the cumulative baseline hazard \eqn{\Lambda_0(t)=\int_0^t\lambda_0(u)du}
+is used together with the partial likelihood estimate of \eqn{\beta} to obtain 
+estimates of the survival function \eqn{S(t|X=x,Z)}:
+\deqn{\hat{S}(t|X=x,Z)=exp[-\hat{\Lambda}_0(t)exp\{h(X=x,Z;\hat{\beta})\}].} 
+For each \eqn{t} in the \code{t} argument and for each \eqn{x} in the \code{x} argument, 
+these estimates are averaged across all subjects (i.e. all observed values of \eqn{Z})
+to produce estimates 
+\deqn{\hat{\theta}(t,x)=\sum_{i=1}^n \hat{S}(t|X=x,Z_i)/n.} 
+The variance for \eqn{\hat{\theta}(t,x)} is obtained by the sandwich formula. 
+}
+\value{
+%%  ~Describe the value returned
+%%  If it is a LIST, use
+%%  \item{comp1 }{Description of 'comp1'}
+%%  \item{comp2 }{Description of 'comp2'}
+%% ...
+An object of class \code{"stdCoxph"} is a list containing all input arguments to the \code{stdCoxph}
+function, except \code{data}. In addition the list contains:
+\item{fit}{
+ the fitted \code{coxph} object.
+}
+\item{surv.est}{
+  a matrix with \code{length(t)} rows and \code{length(x)} columns, where the element 
+  on row \code{i} and column \code{j} is equal to \eqn{\hat{\theta}}(\code{t[i],x[j]}). 
+  }
+\item{surv.vcov}{
+  a list with \code{length(t)} elements. Each element is a square matrix with 
+  \code{length(x)} rows. In the \code{k:th} matrix, the element on row \code{i} 
+  and column \code{j} is the (estimated) covariance of \eqn{\hat{\theta}}(\code{t[k]},\code{x[i]}) 
+  and \eqn{\hat{\theta}}(\code{t[k]},\code{x[j]}).
+  }
+}
+\references{
+%% ~put references to the literature/web site here ~
+Makuch R.W. (1982). Adjusted survival curve estimation using covariates.
+\emph{Journal of Chronic Diseases} \bold{35}, 437-443.
+
+Chang I.M., Gelman G., Pagano M. (1982). Corrected group prognostic curves
+and summary statistics. \emph{Journal of Chronic Diseases} \bold{35}, 669-674.
+
+Gail M.H. and Byar D.P. (1986). Variance calculations for direct adjusted survival
+curves, with applications to testing for no treatement effect. \emph{Biometrical Journal}
+\bold{28}(5), 587-599. 
+}
+\author{
+%%  ~~who you are~~
+Arvid Sjolander
+}
+\note{
+%%  ~~further notes~~
+Standardized survival functions are sometimes referred to as (direct) adjusted
+survival functions in the literature.
+
+\code{stdCoxph} does not currently handle time-varying exposures or covariates. 
+
+\code{stdCoxph} internally loops over all values in the \code{t} argument. Therefore,
+the function will usually be considerably faster if \code{length(t)} is small.
+
+The variance calculation performed by \code{stdCoxph} does not condition on 
+the observed covariates \eqn{\bar{Z}=(Z_1,...,Z_n)}. To see how this matters, note that 
+\deqn{var\{\hat{\theta}(t,x)\}=E[var\{\hat{\theta}(t,x)|\bar{Z}\}]+var[E\{\hat{\theta}(t,x)|\bar{Z}\}].} 
+The usual parameter \eqn{\beta} in a Cox proportional hazards model does not depend 
+on \eqn{\bar{Z}}. Thus, \eqn{E(\hat{\beta}|\bar{Z})} is 
+independent of \eqn{\bar{Z}} as well (since \eqn{E(\hat{\beta}|\bar{Z})=\beta}), so that the 
+term \eqn{var[E\{\hat{\beta}|\bar{Z}\}]} in the corresponding variance decomposition 
+for \eqn{var(\hat{\beta})} becomes equal to 0. However, \eqn{\theta(t,x)} depends 
+on \eqn{\bar{Z}} through the average over the sample distribution for \eqn{Z}, 
+and thus the term \eqn{var[E\{\hat{\theta}(t,x)|\bar{Z}\}]} is not 0, unless one 
+conditions on \eqn{\bar{Z}}. The variance calculation by Gail and Byar (1986) ignores this term,
+and thus effectively conditions on \eqn{\bar{Z}}.      
+}
+
+%% ~Make other sections like Warning with \section{Warning }{....} ~
+
+\examples{
+
+require(survival)
+
+n <- 1000
+Z <- rnorm(n)
+X <- rnorm(n, mean = Z)
+T <- rexp(n, rate = exp(X + Z + X*Z)) #survival time
+C <- rexp(n, rate = exp(X + Z + X*Z)) #censoring time
+U <- pmin(T, C) #time at risk
+D <- as.numeric(T < C) #event indicator
+dd <- data.frame(Z,X,U,D)
+fit <- coxph(formula = Surv(U, D) ~ X + Z + X*Z, data = dd)
+fit.std <- stdCoxph(fit = fit, data = dd, X = "X", x = seq(-1,1,0.5), t = 1:5)
+print(summary(fit.std, t = 3))
+plot(fit.std)
+
+}

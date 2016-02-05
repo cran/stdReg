@@ -1,0 +1,13 @@
+bffe936010de43a907602903b45d5c51 *DESCRIPTION
+e53d6b4394aa05904b190438d2d4772b *NAMESPACE
+bff2a9c810a1ab1f989ba19186b5cc66 *R/sourcecode.R
+f69e0ead2d963e6599473e39e5b16cdd *build/partial.rdb
+45951b8edb7591d1cd288dfecbc7289f *man/plot.stdCoxph.Rd
+a4f8a1274e748b90e6c81f6462fb2187 *man/plot.stdGlm.Rd
+f1634138b0284da0572977eb6cd34823 *man/print.summary.stdCoxph.Rd
+a39190d17436ee42cd8bd5ae7ee325e4 *man/print.summary.stdGlm.Rd
+89f35397c05a3944b12a92e02bae25d7 *man/stdCoxph.Rd
+5bb7dd458d0e1c97fc91254193cbab49 *man/stdGlm.Rd
+e4b079c512d27fe9b382adcb6677475e *man/stdReg-package.Rd
+cc5a8108d9bdc42e9d6c70f1f47d413a *man/summary.stdCoxph.Rd
+ca4559a88f7e8d509d934a0b0d88e7fa *man/summary.stdGlm.Rd
