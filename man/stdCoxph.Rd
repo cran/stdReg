@@ -51,8 +51,7 @@ in \code{data}.
 }
   \item{clusters}{
 %%     ~~Describe \code{clusters} here~~
-an optional vector of cluster identification numbers to be used in the fitting process when data are clustered. 
-Should be NULL or a numeric vector.
+an optional string containing the name of a cluster identification variable when data are clustered.
 }
 
 }

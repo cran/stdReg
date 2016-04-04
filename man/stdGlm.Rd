@@ -45,8 +45,7 @@ then \code{x} defaults to the mean of \eqn{X}.
  
   \item{clusters}{
 %%     ~~Describe \code{clusters} here~~
-an optional vector of cluster identification numbers to be used in the fitting process when data are clustered. 
-Should be NULL or a numeric vector.
+an optional string containing the name of a cluster identification variable when data are clustered. 
 }
   \item{case.control}{
 %%     ~~Describe \code{case.control} here~~
@@ -60,7 +59,7 @@ logical. Do data come from a case-control study? Defaults to FALSE.
 \deqn{\eta\{E(Y|X,Z)\}=h(X,Z;\beta)}
 has been fitted. The maximum likelihood estimate of \eqn{\beta} is used to obtain 
 estimates of the mean \eqn{E(Y|X=x,Z)}:
-\deqn{\hat{E}(Y|X=x,Z)=\eta^{-1}\{h(X,Z;\hat{\beta})\}.} 
+\deqn{\hat{E}(Y|X=x,Z)=\eta^{-1}\{h(X=x,Z;\hat{\beta})\}.} 
 For each \eqn{x} in the \code{x} argument, these estimates are averaged across 
 all subjects (i.e. all observed values of \eqn{Z}) to produce estimates  
 \deqn{\hat{\theta}(x)=\sum_{i=1}^n \hat{E}(t|X=x,Z_i)/n.}

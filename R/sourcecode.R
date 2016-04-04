@@ -37,10 +37,9 @@ stdGlm <- function(fit, data, X, x, clusters, case.control=FALSE){
   #to have special case for non-clustered case-control
 
   if(!missing(clusters)){
-    clusters <- clusters[complete]
+    data <- data[order(data[, clusters]), ]
+    clusters <- data[, clusters]
     n.cluster <- length(unique(clusters))
-    data <- data[order(clusters), ]
-    clusters <- sort(clusters)
   }
 
   #assign values to x and reference if not supplied
@@ -206,7 +205,7 @@ summary.stdGlm <- function(object, CI.type="plain", CI.level=95,
 
 }
 
-print.summary.stdGlm <- function(x,  ...){
+print.summary.stdGlm <- function(x, ...){
 
   cat("\nFormula: ")
   print(x$fit$formula)
@@ -220,7 +219,7 @@ print.summary.stdGlm <- function(x,  ...){
     cat("Contrast: ", x$contrast,  "\n")
   }
   cat("\n")
-  print(x$est.table)
+  print(x$est.table, digits=3)
 
 }
 
@@ -353,10 +352,9 @@ stdCoxph <- function(fit, data, X, x, t, clusters){
   #when using data.table than the aggregate function
 
   if(!missing(clusters)){
-    clusters <- clusters[complete]
+    data <- data[order(data[, clusters]), ]
+    clusters <- data[, clusters]
     n.cluster <- length(unique(clusters))
-    data <- data[order(clusters), ]
-    clusters <- sort(clusters)
   }
   
   #assign values to x and reference if not supplied
@@ -584,7 +582,7 @@ print.summary.stdCoxph <- function(x, ...){
     }
     cat("Survival functions evaluated at t =", x$tsum[j], "\n")
     cat("\n")
-    print(x$est.table[[j]])
+    print(x$est.table[[j]], digits=3)
     cat("\n")
 
   }
@@ -693,14 +691,5 @@ plot.stdCoxph <- function(x, plot.CI=TRUE, CI.type="plain", CI.level=95,
 }
 
 
-#if(is.null(contrast))
-#      legend <- c(legend, bquote(S[.(temp)](t)), expression())
-#    else{
-#      tempref <- as.character(reference)
-#      if(contrast == "difference")
-#        legend <- c(legend, bquote(paste(S[.(temp)](t), " - ", S[.(tempref)](t))), expression())
-#      if(contrast == "ratio")
-#        legend <- c(legend, bquote(paste(S[.(temp)](t), " / ", S[.(tempref)](t))), expression())
-#    }
 
 
