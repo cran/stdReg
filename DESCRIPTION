@@ -1,14 +1,14 @@
 Package: stdReg
 Type: Package
 Title: Regression Standardization
-Version: 1.1
-Date: 2016-04-01
-Author: Arvid Sjolander
+Version: 2.1
+Date: 2017-02-03
+Author: Arvid Sjolander and Elisabeth Dahlqwist
 Maintainer: Arvid Sjolander <arvid.sjolander@ki.se>
-Description: Contains functionality for regression standardization. Two general classes of models are allowed; generalized linear models and Cox proportional hazards models.
+Description: Contains functionality for regression standardization. Three general classes of models are allowed; generalized linear models, Cox proportional hazards models and shared gamma-Weibull frailty models.
 License: LGPL (>= 3)
 Imports: graphics, stats, survival, data.table
 NeedsCompilation: no
-Packaged: 2016-04-04 09:22:21 UTC; arvsjo
+Packaged: 2017-02-03 10:35:40 UTC; arvsjo
 Repository: CRAN
-Date/Publication: 2016-04-04 12:10:05
+Date/Publication: 2017-02-03 14:33:19

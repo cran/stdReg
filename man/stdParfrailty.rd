@@ -1,33 +1,30 @@
-\name{stdCoxph}
-\alias{stdCoxph}
+\name{stdParfrailty}
+\alias{stdParfrailty}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
 %%  ~~function to do ... ~~
-Regression standardization in Cox proportional hazards models
+Regression standardization in shared gamma-Weibull frailty models
 }
 \description{
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
-\code{stdCoxph} performs regression standardization in Cox proportional hazards models,
+\code{stdParfrailty} performs regression standardization in shared gamma-Weibull frailty models,
 at specified values of the exposure, over the sample covariate distribution.
 Let \eqn{T}, \eqn{X}, and \eqn{Z} be the survival outcome, the exposure, and a
-vector of covariates, respectively. \code{stdCoxph} uses a fitted Cox 
+vector of covariates, respectively. \code{stdParfrailty} uses a fitted Cox 
 proportional hazards model to estimate the standardized 
 survival function \eqn{\theta(t,x)=E\{S(t|X=x,Z)\}}, where \eqn{t} is a specific value of \eqn{T}, 
 \eqn{x} is a specific value of \eqn{X}, and the expectation is over the marginal 
 distribution of \eqn{Z}.     
 }
 \usage{
-stdCoxph(fit, data, X, x, t, clusterid)
+stdParfrailty(fit, data, X, x, t, clusterid)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{fit}{
 %%     ~~Describe \code{formula} here~~
-an object of class \code{"coxph"}, as returned by the \code{coxph} function 
-  in the \code{survival} package, but without special terms \code{strata}, \code{cluster} or \code{tt}. 
-  Only \code{breslow} method for handling ties is allowed. If arguments 
-  \code{weights} and/or \code{subset} are used when fitting the model, 
-  then the same weights and subset are used in \code{stdGlm}.  
+an object of class \code{"parfrailty"}, as returned by the \code{parfrailty} function 
+  in the \code{stdReg} package..  
 }
   \item{data}{
 %%     ~~Describe \code{data} here~~
@@ -45,7 +42,7 @@ the standardized survival function. If \eqn{X} is binary (0/1) or
 a factor, then \code{x} defaults to all values of \eqn{X}. If \eqn{X} is numeric,
 then \code{x} defaults to the mean of \eqn{X}. If \code{x} is set to \code{NA},
 then \eqn{X} is not altered. This produces an estimate of the marginal survival 
-function \eqn{S(t)=E\{S(t|X,Z)\}}.   
+function \eqn{S(t)=E\{S(t|X,Z)\}}. 
 }
   \item{t}{
 %%     ~~Describe \code{t} here~~
@@ -55,19 +52,22 @@ in \code{data}.
 }
   \item{clusterid}{
 %%     ~~Describe \code{clusters} here~~
-an optional string containing the name of a cluster identification variable when data are clustered.
+an string containing the name of the cluster identification variable.
 }
 
 }
 \details{
 %%  ~~ If necessary, more details than the description above ~~
-\code{stdCoxph} assumes that a Cox proportional hazards model 
-\deqn{\lambda(t|X,Z)=\lambda_0(t)exp\{h(X,Z;\beta)\}}
-has been fitted. Breslow's 
-estimator of the cumulative baseline hazard \eqn{\Lambda_0(t)=\int_0^t\lambda_0(u)du}
-is used together with the partial likelihood estimate of \eqn{\beta} to obtain 
+\code{stdParfrailty} assumes that a shared gamma-Weibull frailty model 
+\deqn{\lambda(t_{ij}|X_{ij},Z_{ij})=\lambda(t_{ij};\alpha,\eta)U_iexp\{h(X_{ij},Z_{ij};\beta)\}}
+has been fitted, with parametrization as descibed in the help section for \code{parfrailty}.
+Integrating out the gamma frailty gives the survival function
+\deqn{S(t|X,Z)=[1+\phi\Lambda_0(t;\alpha,\eta)exp\{h(X,Z;\beta)\}]^{-1/\phi},}
+where \eqn{\Lambda_0(t;\alpha,\eta)} is the cumulative baseline hazard
+\deqn{(t/\alpha)^{\eta}.}
+The ML estimates of \eqn{(\alpha,\eta,\phi,\beta)} are used to obtain 
 estimates of the survival function \eqn{S(t|X=x,Z)}:
-\deqn{\hat{S}(t|X=x,Z)=exp[-\hat{\Lambda}_0(t)exp\{h(X=x,Z;\hat{\beta})\}].} 
+\deqn{\hat{S}(t|X=x,Z)=[1+\hat{\phi}\Lambda_0(t;\hat{\alpha},\hat{\eta})exp\{h(X,Z;\hat{\beta})\}]^{-1/\hat{\phi}}.} 
 For each \eqn{t} in the \code{t} argument and for each \eqn{x} in the \code{x} argument, 
 these estimates are averaged across all subjects (i.e. all observed values of \eqn{Z})
 to produce estimates 
@@ -80,7 +80,7 @@ The variance for \eqn{\hat{\theta}(t,x)} is obtained by the sandwich formula.
 %%  \item{comp1 }{Description of 'comp1'}
 %%  \item{comp2 }{Description of 'comp2'}
 %% ...
-An object of class \code{"stdCoxph"} is a list containing 
+An object of class \code{"stdParfrailty"} is a list containing 
 \item{est}{
   a matrix with \code{length(t)} rows and \code{length(x)} columns, where the element 
   on row \code{i} and column \code{j} is equal to \eqn{\hat{\theta}}(\code{t[i],x[j]}). 
@@ -113,12 +113,12 @@ Arvid Sjolander
 Standardized survival functions are sometimes referred to as (direct) adjusted
 survival functions in the literature.
 
-\code{stdCoxph} does not currently handle time-varying exposures or covariates. 
+\code{stdParfrailty} does not currently handle time-varying exposures or covariates. 
 
-\code{stdCoxph} internally loops over all values in the \code{t} argument. Therefore,
+\code{stdParfrailty} internally loops over all values in the \code{t} argument. Therefore,
 the function will usually be considerably faster if \code{length(t)} is small.
 
-The variance calculation performed by \code{stdCoxph} does not condition on 
+The variance calculation performed by \code{stdParfrailty} does not condition on 
 the observed covariates \eqn{\bar{Z}=(Z_1,...,Z_n)}. To see how this matters, note that 
 \deqn{var\{\hat{\theta}(t,x)\}=E[var\{\hat{\theta}(t,x)|\bar{Z}\}]+var[E\{\hat{\theta}(t,x)|\bar{Z}\}].} 
 The usual parameter \eqn{\beta} in a Cox proportional hazards model does not depend 
@@ -138,16 +138,34 @@ and thus effectively conditions on \eqn{\bar{Z}}.
 
 require(survival)
 
+#simulate data
 n <- 1000
-Z <- rnorm(n)
-X <- rnorm(n, mean=Z)
-T <- rexp(n, rate=exp(X + Z + X*Z)) #survival time
-C <- rexp(n, rate=exp(X + Z + X*Z)) #censoring time
-U <- pmin(T, C) #time at risk
-D <- as.numeric(T < C) #event indicator
-dd <- data.frame(Z,X,U,D)
-fit <- coxph(formula=Surv(U, D) ~ X + Z + X*Z, data = dd, method = "breslow")
-fit.std <- stdCoxph(fit=fit, data=dd, X="X", x=seq(-1,1,0.5), t=1:5)
+m <- 3
+alpha <- 1.5
+eta <- 1
+phi <- 0.5
+beta <- 1
+id <- rep(1:n,each=m)
+U <- rep(rgamma(n,shape=1/phi,scale=phi), each=m)
+X <- rnorm(n*m)
+#reparametrize scale as in rweibull function
+weibull.scale <- alpha/(U*exp(beta*X))^(1/eta)
+T <- rweibull(n*m, shape=eta, scale=weibull.scale)
+
+#right censoring
+C <- runif(n*m,0,10)
+D <- as.numeric(T<C)
+T <- pmin(T,C)
+  
+#strong left-truncation
+L <- runif(n*m,0,2)
+incl <- T>L
+incl <- ave(x=incl, id, FUN=sum)==m
+dd <- data.frame(L, T, D, X, id)
+dd <- dd[incl, ]  
+ 
+fit <- parfrailty(formula=Surv(L, T, D) ~ X, data=dd, clusterid="id")
+fit.std <- stdParfrailty(fit=fit, data=dd, X="X", x=seq(-1,1,0.5), t=1:5, clusterid="id")
 print(summary(fit.std, t=3))
 plot(fit.std)
 

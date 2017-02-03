@@ -16,14 +16,16 @@ mean \eqn{\theta(x)=E\{E(Y|X=x,Z)\}}, where \eqn{x} is a specific value of \eqn{
 and the outer expectation is over the marginal distribution of \eqn{Z}. 
 }
 \usage{
-stdGlm(fit, data, X, x, clusters, case.control = FALSE)
+stdGlm(fit, data, X, x, clusterid, case.control = FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{fit}{
 %%     ~~Describe \code{formula} here~~
 an object of class \code{"glm"}, as returned by the \code{glm} function 
-  in the \code{stats} package. 
+  in the \code{stats} package. If arguments \code{weights} and/or \code{subset}
+  are used when fitting the model, then the same weights and subset are used 
+  in \code{stdGlm}.  
 }
   
   \item{data}{
@@ -40,10 +42,12 @@ a string containing the name of the exposure variable \eqn{X} in \code{data}.
 an optional vector containing the specific values of \eqn{X} at which to estimate 
 the standardized mean. If \eqn{X} is binary (0/1) or
 a factor, then \code{x} defaults to all values of \eqn{X}. If \eqn{X} is numeric,
-then \code{x} defaults to the mean of \eqn{X}. 
+then \code{x} defaults to the mean of \eqn{X}. If \code{x} is set to \code{NA},
+then \eqn{X} is not altered. This produces an estimate of the marginal mean
+ \eqn{E(Y)=E\{E(Y|X,Z)\}}. 
 }
  
-  \item{clusters}{
+  \item{clusterid}{
 %%     ~~Describe \code{clusters} here~~
 an optional string containing the name of a cluster identification variable when data are clustered. 
 }
@@ -72,16 +76,12 @@ The variance for \eqn{\hat{\theta}(x)} is obtained by the sandwich formula.
 %%  \item{comp1 }{Description of 'comp1'}
 %%  \item{comp2 }{Description of 'comp2'}
 %% ...
-An object of class \code{"stdGlm"} is a list containing all input arguments to the \code{stdGlm}
-function, except \code{data}. In addition the list contains:
-\item{fit}{
- the fitted \code{glm} object.
-}
-\item{means.est}{
+An object of class \code{"stdGlm"} is a list containing 
+\item{est}{
   a vector with length equal to \code{length(x)}, where element \code{j} is equal to 
   \eqn{\hat{\theta}}(\code{x[j]}).
   }
-\item{means.vcov}{
+\item{vcov}{
   a square matrix with \code{length(x)} rows, where the element 
   on row \code{i} and column \code{j} is the (estimated) covariance of 
   \eqn{\hat{\theta}}(\code{x[i]}) and 
@@ -120,22 +120,22 @@ conditions on \eqn{\bar{Z}}.
 ##Example 1: continuous outcome
 n <- 1000
 Z <- rnorm(n)
-X <- rnorm(n, mean = Z)
-Y <- rnorm(n, mean = X + Z + 0.1 * X^2)
-dd <- data.frame(Z,X,Y)
-fit <- glm(formula = Y ~ X + Z + I(X^2), data = dd)
-fit.std <- stdGlm(fit = fit, data = dd, X = "X", x = seq(-3,3,0.5))
+X <- rnorm(n, mean=Z)
+Y <- rnorm(n, mean=X + Z + 0.1 * X^2)
+dd <- data.frame(Z, X, Y)
+fit <- glm(formula=Y ~ X + Z + I(X^2), data = dd)
+fit.std <- stdGlm(fit=fit, data = dd, X = "X", x = seq(-3,3,0.5))
 print(summary(fit.std))
 plot(fit.std)
 
 ##Example 2: binary outcome
 n <- 1000
 Z <- rnorm(n)
-X <- rnorm(n, mean = Z)
-Y <- rbinom(n, 1, prob = (1 + exp(X + Z))^(-1))
-dd <- data.frame(Z,X,Y)
-fit <- glm(formula = Y ~ X + Z + X*Z, family = "binomial", data = dd)
-fit.std <- stdGlm(fit = fit, data = dd, X = "X", x = seq(-3,3,0.5))
+X <- rnorm(n, mean=Z)
+Y <- rbinom(n, 1, prob=(1 + exp(X + Z))^(-1))
+dd <- data.frame(Z, X, Y)
+fit <- glm(formula=Y ~ X + Z + X*Z, family="binomial", data=dd)
+fit.std <- stdGlm(fit=fit, data=dd, X = "X", x=seq(-3,3,0.5))
 print(summary(fit.std))
 plot(fit.std)
 }

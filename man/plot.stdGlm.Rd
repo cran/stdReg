@@ -11,7 +11,7 @@ This is a \code{plot} method for class \code{"stdGlm"}.
 }
 \usage{
 %%plot.stdGlm(x, ..., plot.contrasts = FALSE)
-\method{plot}{stdGlm}(x, CI.type = "plain", CI.level = 95,
+\method{plot}{stdGlm}(x, CI.type = "plain", CI.level = 0.95,
   transform = NULL, contrast = NULL, reference = NULL, ...)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -28,7 +28,7 @@ gives untransformed intervals, or "log", which gives log-transformed intervals.
 }
   \item{CI.level}{
 %%     ~~Describe \code{CI.type} here~~
-desired coverage probability of confidence intervals, in percent. 
+desired coverage probability of confidence intervals, on decimal form. 
 }
 \item{transform}{
 %%     ~~Describe \code{CI.type} here~~

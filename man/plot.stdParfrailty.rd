@@ -1,25 +1,25 @@
-\name{plot.stdCoxph}
-\alias{plot.stdCoxph}
+\name{plot.stdParfrailty}
+\alias{plot.stdParfrailty}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
 %%  ~~function to do ... ~~
-Plots Cox regression standardization fit
+Plots parfrailty standardization fit
 }
 \description{
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
-This is a \code{plot} method for class \code{"stdCoxph"}. 
+This is a \code{plot} method for class \code{"stdParfrailty"}. 
 }
 
 \usage{
-%%plot.stdCoxph(x, ..., plot.contrasts = FALSE, plot.CI = FALSE, CI.type = "log")
-\method{plot}{stdCoxph}(x, plot.CI = TRUE, CI.type = "plain", CI.level = 0.95,
+%%plot.stdParfrailty(x, ..., plot.contrasts = FALSE, plot.CI = FALSE, CI.type = "log")
+\method{plot}{stdParfrailty}(x, plot.CI = TRUE, CI.type = "plain", CI.level = 0.95,
   transform = NULL, contrast = NULL, reference = NULL, legendpos="bottomleft", ...)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{x}{
 %%     ~~Describe \code{x} here~~
-an object of class \code{"stdCoxph"}.
+an object of class \code{"stdParfrailty"}.
 }
  
   \item{plot.CI}{
@@ -62,6 +62,7 @@ must be specified if \code{contrast} is specified.
 position of the legend; see help for \code{legend}. 
 }
 
+
   \item{\dots}{
 %%     ~~Describe \code{\dots} here~~
 further arguments passed on to plot.default. 
@@ -74,11 +75,11 @@ Arvid Sjolander
 }
 \seealso{
 %% ~~objects to See Also as \code{\link{help}}, ~~~
-\code{\link{stdCoxph}}
+\code{\link{stdParfrailty}}
 }
 \examples{
 
-##See documentation for stdCoxph
+##See documentation for stdParfrailty
 
 }
 
