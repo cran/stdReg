@@ -1,12 +1,12 @@
 globalVariables(".SD")
 globalVariables(".")
 
-logit <- function(x) log(x) - log(1 - x)
-odds <- function(x) x / (1 - x)
+logit <- function(x) log(x)-log(1-x)
+odds <- function(x) x/(1-x)
   
 is.binary <- function(v){
 
-  if(is.numeric(v) & all(v == 0 | v == 1, na.rm=TRUE))
+  if(is.numeric(v) & all(v==0 | v==1, na.rm=TRUE))
     TRUE
   else
     FALSE
@@ -20,25 +20,42 @@ aggr <- function(x, clusters){
 
 }  
 
-CI <- function(est, se, CI.type, CI.level){
+CI <- function(est, var, CI.type="plain", CI.level=0.95){
 
-  qqq <- abs(qnorm((1 - CI.level) / 2))
+  se <- sqrt(var)
+  qqq <- abs(qnorm((1-CI.level)/2))
 
-  if(CI.type == "plain"){
-    lower <- est - qqq * se
-    upper <- est + qqq * se
+  if(CI.type=="plain"){
+    lower <- est-qqq*se
+    upper <- est+qqq*se
   }
-  if(CI.type == "log"){
-    lower <- est * exp( - qqq * se / est)
-    upper <- est * exp(qqq * se / est)
+  if(CI.type=="log"){
+    lower <- est*exp(-qqq*se/est)
+    upper <- est*exp(qqq*se/est)
   }
   
-  CI <- cbind(lower, upper)
-  return(CI)
+  ci <- cbind(lower, upper)
+  return(ci)
   
 }
 
-stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE){
+delmet <- function(fun, est, vcov){
+
+  if(!is.list(vcov)){
+    est <- matrix(est, nrow=1)
+    vcov <- list(vcov)
+  }
+  p <- length(vcov)
+  var <- vector(length=p) 
+  for(i in 1:p){
+    gradient <- matrix(grad(func=fun, x=est[i, , drop=FALSE]), nrow=1) 
+    var[i] <- gradient%*%vcov[[i]]%*%t(gradient)
+  }
+  return(var)
+
+}
+
+stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
 
   #---PREPARATION---
   
@@ -48,11 +65,18 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE){
   out <- list(fit=fit, X=X)
 
   #delete rows that did not contribute to the model fit,
-  #e.g. not in subset or with missing data
+  #e.g. missing data or not in subset for fit 
   m <- model.matrix(object=fit)
   data <- data[match(rownames(m), rownames(data)), ]
   n <- nrow(data)
-
+  
+  #make new subset if supplied
+  arguments <- as.list(match.call())
+  if("subsetnew" %in% names(arguments))
+    subsetnew  <-  as.numeric(eval(expr=arguments$subsetnew, envir=data))
+  else
+    subsetnew  <- rep(1, n)
+  
   #Can write code more generally with
   #if(missing(clusters)) clusters <- 1:nrow(data)
   #but a problem when constructing meat in sandwich formula:
@@ -60,7 +84,7 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE){
   #when using data.table than the aggregate function
   if(!missing(clusterid))
     n.cluster <- length(unique(data[, clusterid]))
-   
+ 
   #assign values to x and reference if not supplied
   #make sure x is a factor if data[, X] is a factor
   #with the same levels as data[, X]
@@ -91,28 +115,31 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE){
 
   nX <- length(x)
   out <- c(out, list(x=x))
-
+ 
   #---ESTIMATES OF MEANS AT VALUES SPECIFIED BY x ---
-  
+ 
   pred <- matrix(nrow=n, ncol=nX)
   g <- family(fit)$mu.eta
   SI.beta <- matrix(nrow=nX, ncol=npar)
   for(i in 1:nX){
     data.temp <- data
-    data.temp[, X] <- x[i]
+    if(!is.na(x[i]))
+      data.temp[, X] <- x[i]
     pred[, i] <- predict(object=fit, newdata=data.temp, type="response")
     dmu.deta <- g(predict(object=fit, newdata=data.temp))
-    deta.dbeta <- model.matrix(object=formula, data=data.temp)
-    dmu.dbeta <- dmu.deta * deta.dbeta
-    SI.beta[i, ] <- colMeans(weights * dmu.dbeta)
+    deta.dbeta <- model.matrix(object=formula, data=data.temp) 
+    dmu.dbeta <- dmu.deta*deta.dbeta
+    SI.beta[i, ] <- colMeans(subsetnew*weights*dmu.dbeta)
   }
-  est <- colSums(weights * pred, na.rm=TRUE) / sum(weights)
- 
+  est <- colSums(subsetnew*weights*pred, na.rm=TRUE)/
+    sum(subsetnew*weights)
+   
   #---VARIANCE OF MEANS AT VALUES SPECIFIED BY x---
-  
-  ores <- weights * residuals(object=fit, type="response") *
+   
+  ores <- weights*residuals(object=fit, type="response") *
     model.matrix(object=formula, data=data)
-  mres <- weights * (pred - matrix(rep(est, each=n), nrow=n, ncol=nX))
+  mres <- subsetnew*weights*(pred-matrix(rep(est, each=n), nrow=n, 
+    ncol=nX))
   res <- cbind(mres, ores)
   
   if(case.control & missing(clusterid)){
@@ -121,7 +148,7 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE){
     cases <- which(data[, outcome]==1)
     n0 <- length(controls)
     n1 <- length(cases)
-    J <- n0/n * var(res[controls, ], na.rm=TRUE) + n1/n * var(res[cases, ], 
+    J <- n0/n*var(res[controls, ], na.rm=TRUE)+n1/n*var(res[cases, ], 
       na.rm=TRUE)
   }
   else{
@@ -129,18 +156,18 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE){
       res <- aggr(x=res, clusters=data[, clusterid])
     J <- var(res, na.rm=TRUE)
   }
-  
-  SI <- cbind(-diag(nX) * mean(weights), SI.beta)
+
+  SI <- cbind(-diag(nX)*mean(subsetnew*weights), SI.beta)
   #Note: cov.unscaled gives weighted fisher info but without dispersion parameter
   oI <- cbind(matrix(0, nrow=npar, ncol=nX), 
-    -solve(summary(object=fit)$cov.unscaled) / n ) 
+    -solve(summary(object=fit)$cov.unscaled)/n )   
   I <- rbind(SI, oI)
   if(missing(clusterid))
-    V <- (solve(I) %*% J %*% t(solve(I)) / n)[1:nX, 1:nX]
+    V <- (solve(I)%*%J%*%t(solve(I))/n)[1:nX, 1:nX]
   else
-    V <- (solve(I) %*% J %*% t(solve(I)) * n.cluster / n^2)[1:nX, 1:nX]
+    V <- (solve(I)%*%J%*%t(solve(I))*n.cluster/n^2)[1:nX, 1:nX]
   vcov <- V
-
+   
   out <- c(out, list(est=est, vcov=vcov))
 
   #---OUTPUT---
@@ -158,42 +185,43 @@ summary.stdGlm <- function(object, CI.type="plain", CI.level=0.95,
   nX <- length(object$x)
 
   if(!is.null(transform)){
-    if(transform == "log"){
-      dtransform.dm <- diag(1 / est, nrow=nX, ncol=nX)
+    if(transform=="log"){
+      dtransform.dm <- diag(1/est, nrow=nX, ncol=nX)
       est <- log(est)
     }
-    if(transform == "logit"){
-      dtransform.dm <- diag(1 / (est * (1 - est)), nrow=nX, ncol=nX)
+    if(transform=="logit"){
+      dtransform.dm <- diag(1/(est*(1-est)), nrow=nX, ncol=nX)
       est <- logit(est)
     }
-    if(transform == "odds"){
-      dtransform.dm <- diag(1 / (1 - est)^2, nrow=nX, ncol=nX)
+    if(transform=="odds"){
+      dtransform.dm <- diag(1/(1-est)^2, nrow=nX, ncol=nX)
       est <- odds(est)
     }
-    V <- t(dtransform.dm) %*% V %*% dtransform.dm
+    V <- t(dtransform.dm)%*%V%*%dtransform.dm
   }
 
   if(!is.null(contrast)){
     referencepos <- match(reference, object$x)
-    if(contrast == "difference"){
+    if(contrast=="difference"){
       dcontrast.dtransform <- diag(nX)
       dcontrast.dtransform[referencepos, ] <- -1
       dcontrast.dtransform[referencepos, referencepos] <- 0
       est <- est-est[referencepos]
     }
-    if(contrast == "ratio"){
-      dcontrast.dtransform <- diag(1 / est[referencepos], nrow=nX, ncol=nX)
-      dcontrast.dtransform[referencepos, ] <- -est / est[referencepos]^2
+    if(contrast=="ratio"){
+      dcontrast.dtransform <- diag(1/est[referencepos], nrow=nX, ncol=nX)
+      dcontrast.dtransform[referencepos, ] <- -est/est[referencepos]^2
       dcontrast.dtransform[referencepos, referencepos] <- 1
-      est <- est / est[referencepos]
+      est <- est/est[referencepos]
     }
-    V <- t(dcontrast.dtransform) %*% V %*% dcontrast.dtransform
+    V <- t(dcontrast.dtransform)%*%V%*%dcontrast.dtransform
     V[referencepos, ] <- 0
     V[, referencepos] <- 0
   }
 
-  se <-  sqrt(diag(V))
-  conf.int <- CI(est=est, se=se, CI.type=CI.type, CI.level=CI.level)
+  var <- diag(V)
+  se <-  sqrt(var)
+  conf.int <- CI(est=est, var=var, CI.type=CI.type, CI.level=CI.level)
   
   if(is.factor(reference))
     reference <- as.character(reference)
@@ -244,44 +272,44 @@ plot.stdGlm <- function(x, CI.type="plain", CI.level=0.95,
     if(is.null(transform))
       ylab <- expression(mu)
     else{
-      if(transform == "log")
+      if(transform=="log")
         ylab <- expression(paste("log(", mu, ")"))
-      if(transform == "logit")
+      if(transform=="logit")
         ylab <- expression(paste("logit(", mu, ")"))
-      if(transform == "odds")
-        ylab <- expression(paste(mu, " / (1-", mu, ")"))
+      if(transform=="odds")
+        ylab <- expression(paste(mu, "/(1-", mu, ")"))
     }
   }
   else{
-    if(contrast == "difference"){
+    if(contrast=="difference"){
       if(is.null(transform))
-        ylab <- c(bquote(paste(mu, " - ", mu[.(reference)])), expression())
+        ylab <- c(bquote(paste(mu, "-", mu[.(reference)])), expression())
       else{
-        if(transform == "log")
-          ylab <- c(bquote(paste(log, "(", mu, ") - ", log, "(",
+        if(transform=="log")
+          ylab <- c(bquote(paste(log, "(", mu, ")-", log, "(",
             mu[.(reference)], ")", sep="")), expression())
-        if(transform == "logit")
-          ylab <- c(bquote(paste(logit, "(", mu, ") - ", logit,
+        if(transform=="logit")
+          ylab <- c(bquote(paste(logit, "(", mu, ")-", logit,
            "(", mu[.(reference)], ")", sep="")), expression())
-        if(transform == "odds")
-          ylab <- c(bquote(paste(mu, " / (", 1 - mu, ") - ",
-            mu[.(reference)], " / (", 1 - mu[.(reference)], ")", sep="")),
+        if(transform=="odds")
+          ylab <- c(bquote(paste(mu, "/(", 1-mu, ")-",
+            mu[.(reference)], "/(", 1-mu[.(reference)], ")", sep="")),
             expression())
       }
     }
-    if(contrast == "ratio"){
+    if(contrast=="ratio"){
       if(is.null(transform))
-        ylab <- c(bquote(paste(mu, " / ", mu[.(reference)])), expression())
+        ylab <- c(bquote(paste(mu, "/", mu[.(reference)])), expression())
       else{
-        if(transform == "log")
-          ylab <- c(bquote(paste(log, "(", mu, ") / ", log, "(",
+        if(transform=="log")
+          ylab <- c(bquote(paste(log, "(", mu, ")/", log, "(",
             mu[.(reference)], ")", sep="")), expression())
-        if(transform == "logit")
-          ylab <- c(bquote(paste(logit, "(", mu, ") / ", logit,
+        if(transform=="logit")
+          ylab <- c(bquote(paste(logit, "(", mu, ")/", logit,
             "(", mu[.(reference)], ")", sep="")), expression())
-        if(transform == "odds")
-          ylab <- c(bquote(paste(mu, " / (", 1 - mu, ") / ",
-            mu[.(reference)], " / (", 1 - mu[.(reference)],
+        if(transform=="odds")
+          ylab <- c(bquote(paste(mu, "/(", 1-mu, ")/",
+            mu[.(reference)], "/(", 1-mu[.(reference)],
             ")", sep="")), expression())
       }
     }
@@ -317,10 +345,9 @@ plot.stdGlm <- function(x, CI.type="plain", CI.level=0.95,
   }
 }
 
-stdCoxph <- function(fit, data, X, x, t, clusterid){
+stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
 
   #---PREPARATION---
-  
   if(!fit$method=="breslow")
     stop("Only breslow method for handling ties is allowed.", call.=FALSE)
   specials <- pmatch(c("strata(","cluster(","tt("), attr(terms(fit$formula),
@@ -332,21 +359,28 @@ stdCoxph <- function(fit, data, X, x, t, clusterid){
   npar <- length(fit$coef)
   fit.detail <- coxph.detail(object=fit)
   out <- list(fit=fit, X=X)
-  
+ 
   #delete rows that did not contribute to the model fit,
-  #e.g. not in subset or with missing data
+  #e.g. missing data or not in subset for fit 
   m <- model.matrix(object=fit)
   data <- data[match(rownames(m), rownames(data)), ]
   n <- nrow(data)
   
+  #make new subset if supplied
+  arguments <- as.list(match.call())
+  if("subsetnew" %in% names(arguments))
+    subsetnew  <- as.numeric(eval(expr=arguments$subsetnew, envir=data))
+  else
+    subsetnew <- rep(1, n)
+
   #extract end variable and event variable
   Y <- model.extract(frame=model.frame(formula=formula, data=data), 
     component="response")
-  if(ncol(Y) == 2){
+  if(ncol(Y)==2){
     end <- Y[, 1]
     event <- Y[, 2]
   }
-  if(ncol(Y) == 3){
+  if(ncol(Y)==3){
     end <- Y[, 2]
     event <- Y[, 3]
   }
@@ -399,6 +433,7 @@ stdCoxph <- function(fit, data, X, x, t, clusterid){
   ord <- order(end)
   data <- data[ord, ]
   weights <- weights[ord]
+  subsetnew <- subsetnew[ord]
   end <- end[ord]
   event <- event[ord]
 
@@ -408,7 +443,7 @@ stdCoxph <- function(fit, data, X, x, t, clusterid){
   out <- c(out, list(t=t))
   nt <- length(t)
 
-  if(sum(fit.detail$time<=min(t)) == 0)
+  if(sum(fit.detail$time<=min(t))==0)
     stop("No events before first value in t", call.=FALSE)
 
   #collect important stuff from copxh.detail
@@ -418,27 +453,27 @@ stdCoxph <- function(fit, data, X, x, t, clusterid){
   E <- matrix(0, nrow=n, ncol=npar)
   means <- as.matrix(fit.detail$means)
   means <- means[rep(1:nrow(means), fit.detail$nevent), ] #handle ties
-  E[event == 1, ] <- means
+  E[event==1, ] <- means
   H0 <- cumsum(dH0)
   H0step <- stepfun(fit.detail$time, c(0, H0))
   H0i=rep(0, n)
-  dH0.untied <- rep(dH0, fit.detail$nevent) / rep(fit.detail$nevent, 
+  dH0.untied <- rep(dH0, fit.detail$nevent)/rep(fit.detail$nevent, 
     fit.detail$nevent)
-  H0i[event == 1] <- dH0.untied * n #handle ties
-  betares <- as.matrix(weights * residuals(object=fit, type="score")) 
+  H0i[event==1] <- dH0.untied*n #handle ties
+  betares <- as.matrix(weights*residuals(object=fit, type="score")) 
   betares <- betares[ord, ]
   
   #---LOOP OVER nt
 
   for(j in 1:nt){
   
-    if(t[j] == 0){
+    if(t[j]==0){
       est[j, ] <- 1
       vcov[[j]] <- matrix(0, nrow=nX, ncol=nX)
     }
     else{
 
-    H0it <- H0i * (end <= t[j])
+    H0it <- H0i*(end <= t[j])
 
     #---ESTIMATES OF SURVIVAL PROBABILITIES AT VALUES SPECIFIED BY x ---
 
@@ -447,36 +482,39 @@ stdCoxph <- function(fit, data, X, x, t, clusterid){
     tempmat <- matrix(nrow=nX, ncol=npar)
     for(i in 1:nX){
       data.temp <- data
-      data.temp[, X] <- x[i]
+      if(!is.na(x[i]))
+        data.temp[, X] <- x[i]
       predX <- predict(object=fit, newdata=data.temp, type="risk")
-      si[, i] <- exp(-H0step(t[j]) * predX)
+      si[, i] <- exp(-H0step(t[j])*predX)
       PredX[, i] <- predX
       tempmat[i, ] <- colMeans(model.matrix(object=formula, 
-        data=data.temp)[, -1, drop=FALSE] * predX * si[, i] * weights)
+        data=data.temp)[, -1, drop=FALSE]*predX*si[, i]*
+        subsetnew*weights)
     }
-    est[j, ] <- colSums(weights * si, na.rm=TRUE) / sum(weights)
+    est[j, ] <- colSums(subsetnew*weights*si, na.rm=TRUE)/
+      sum(subsetnew*weights)
     
 
     #---VARIANCE OF SURVIVAL PROBABILITIES AT VALUES SPECIFIED BY x, ---
     
-    sres <- weights * (si - matrix(rep(est[j, ],each=n), nrow=n, ncol=nX))
-    H0rest <-  H0it - H0step(t[j])
+    sres <- subsetnew*weights*(si-matrix(rep(est[j, ],each=n), nrow=n, ncol=nX))
+    H0rest <-  H0it-H0step(t[j])
     res <- cbind(sres, betares, H0rest)
     if(!missing(clusterid))
       res <- aggr(x=res, clusters=data[, clusterid])
     J <- var(res, na.rm=TRUE)
-    SI <- cbind(-diag(nX) * mean(weights), -tempmat * H0step(t[j]),
-      -colMeans(PredX * si * weights))
-    #Note: this is why the user cannot use term cluster; then -solve(vcov(object=fit)) / n
+    SI <- cbind(-diag(nX)*mean(subsetnew*weights), -tempmat*H0step(t[j]),
+      -colMeans(PredX*si*subsetnew*weights))
+    #Note: this is why the user cannot use term cluster; then -solve(vcov(object=fit))/n
     #will not be the bread in the sandwich
-    betaI <- cbind(matrix(0, nrow=npar, ncol=nX), -solve(vcov(object=fit)) / n,
+    betaI <- cbind(matrix(0, nrow=npar, ncol=nX), -solve(vcov(object=fit))/n,
       rep(0, npar))
-    H0I <- c(rep(0, nX), -colMeans(E * H0it, na.rm=TRUE), -1)
+    H0I <- c(rep(0, nX), -colMeans(E*H0it, na.rm=TRUE), -1)
     I <- rbind(SI, betaI, H0I) 
     if(missing(clusterid))
-      V <- (solve(I) %*% J %*% t(solve(I)) / n)[1:nX, 1:nX]
+      V <- (solve(I)%*%J%*%t(solve(I))/n)[1:nX, 1:nX]
     else
-      V <- (solve(I) %*% J %*% t(solve(I)) * n.cluster / n^2)[1:nX, 1:nX]
+      V <- (solve(I)%*%J%*%t(solve(I))*n.cluster/n^2)[1:nX, 1:nX]
     vcov[[j]] <- V
     
     }
@@ -509,48 +547,49 @@ summary.stdCoxph <- function(object, t, CI.type="plain", CI.level=0.95,
       stop("The standardized survival function is not estimated at t", 
         call.=FALSE)
     else
-      k <- which.min(abs(t[j] - object$t))
+      k <- which.min(abs(t[j]-object$t))
 
     est <- est.all[k, ]
     V <- as.matrix(V.all[[k]])
 
     if(!is.null(transform)){
-      if(transform == "log"){
-        dtransform.dm <- diag(1 / est, nrow=nX, ncol=nX)
+      if(transform=="log"){
+        dtransform.dm <- diag(1/est, nrow=nX, ncol=nX)
         est <- log(est)
       }
-      if(transform == "logit"){
-        dtransform.dm <- diag(1 / (est * (1 - est)), nrow=nX, ncol=nX)
+      if(transform=="logit"){
+        dtransform.dm <- diag(1/(est*(1-est)), nrow=nX, ncol=nX)
         est <- logit(est)
       }
-      if(transform == "odds"){
-        dtransform.dm <- diag(1 / (1 - est)^2, nrow=nX, ncol=nX)
+      if(transform=="odds"){
+        dtransform.dm <- diag(1/(1-est)^2, nrow=nX, ncol=nX)
         est <- odds(est)
       }
-      V <- t(dtransform.dm) %*% V %*% dtransform.dm
+      V <- t(dtransform.dm)%*%V%*%dtransform.dm
     }
 
     if(!is.null(contrast)){
       referencepos <- match(reference, object$x)
-      if(contrast == "difference"){
+      if(contrast=="difference"){
         dcontrast.dtransform <- diag(nX)
         dcontrast.dtransform[referencepos, ] <- -1
         dcontrast.dtransform[referencepos, referencepos] <- 0
         est <- est-est[referencepos]
       }
-      if(contrast == "ratio"){
-        dcontrast.dtransform <- diag(1 / est[referencepos], nrow=nX, ncol=nX)
-        dcontrast.dtransform[referencepos, ] <- -est / est[referencepos]^2
+      if(contrast=="ratio"){
+        dcontrast.dtransform <- diag(1/est[referencepos], nrow=nX, ncol=nX)
+        dcontrast.dtransform[referencepos, ] <- -est/est[referencepos]^2
         dcontrast.dtransform[referencepos, referencepos] <- 1
-        est <- est / est[referencepos]
+        est <- est/est[referencepos]
       }
-      V <- t(dcontrast.dtransform) %*% V %*% dcontrast.dtransform
+      V <- t(dcontrast.dtransform)%*%V%*%dcontrast.dtransform
       V[referencepos, ] <- 0
       V[, referencepos] <- 0
     }
 
-    se <-  sqrt(diag(V))
-    conf.int <- CI(est=est, se=se, CI.type=CI.type, CI.level=CI.level)
+    var <- diag(V)
+    se <-  sqrt(var)
+    conf.int <- CI(est=est, var=var, CI.type=CI.type, CI.level=CI.level)
     
     temp <- as.matrix(cbind(est, se, conf.int), nrow=length(est), ncol=4)
     dimnames(temp) <- list(object$x,
@@ -610,45 +649,45 @@ plot.stdCoxph <- function(x, plot.CI=TRUE, CI.type="plain", CI.level=0.95,
     if(is.null(transform))
       ylab <- expression(S(t))
     else{
-      if(transform == "log")
+      if(transform=="log")
         ylab <- expression(paste(log, "{", S(t), "}", sep=""))
-      if(transform == "logit")
+      if(transform=="logit")
         ylab <- expression(paste(logit, "{", S(t), "}", sep=""))
-      if(transform == "odds")
-        ylab <- expression(paste(S(t), " / {", 1 - S(t), "}", sep=""))
+      if(transform=="odds")
+        ylab <- expression(paste(S(t), "/{", 1-S(t), "}", sep=""))
     }
   }
   else{
-    if(contrast == "difference"){
+    if(contrast=="difference"){
       if(is.null(transform))
-        ylab <- c(bquote(paste(S(t), " - ", S[.(reference)](t))), expression())
+        ylab <- c(bquote(paste(S(t), "-", S[.(reference)](t))), expression())
       else{
-        if(transform == "log")
-          ylab <- c(bquote(paste(log, "{", S(t), "} - ", log, "{",
+        if(transform=="log")
+          ylab <- c(bquote(paste(log, "{", S(t), "}-", log, "{",
             S[.(reference)](t), "}", sep="")), expression())
-        if(transform == "logit")
-          ylab <- c(bquote(paste(logit, "{", S(t), "} - ", logit,
+        if(transform=="logit")
+          ylab <- c(bquote(paste(logit, "{", S(t), "}-", logit,
             "{", S[.(reference)](t), "}", sep="")), expression())
-        if(transform == "odds")
-          ylab <- c(bquote(paste(S(t), " / {", 1 - S(t), "} - ",
-            S[.(reference)](t), " / {", 1 - S[.(reference)](t),
+        if(transform=="odds")
+          ylab <- c(bquote(paste(S(t), "/{", 1-S(t), "}-",
+            S[.(reference)](t), "/{", 1-S[.(reference)](t),
             "}", sep="")), expression())
       }
     }
-    if(contrast == "ratio"){
+    if(contrast=="ratio"){
       if(is.null(transform))
-        ylab <- c(bquote(paste(S(t), "  /  ", S[.(reference)](t), sep="")), 
+        ylab <- c(bquote(paste(S(t), " / ", S[.(reference)](t), sep="")), 
           expression())
       else{
-        if(transform == "log")
-          ylab <- c(bquote(paste(log, "{", S(t), "}  /  ", log,
+        if(transform=="log")
+          ylab <- c(bquote(paste(log, "{", S(t), "} / ", log,
             "{", S[.(reference)](t), "}", sep="")), expression())
-        if(transform == "logit")
-          ylab <- c(bquote(paste(logit, "{", S(t), "}  /  ", logit,
+        if(transform=="logit")
+          ylab <- c(bquote(paste(logit, "{", S(t), "} / ", logit,
             "{", S[.(reference)](t), "}", sep="")), expression())
-        if(transform == "odds")
-          ylab <- c(bquote(paste("[", S(t), " / {", 1 - S(t), "}]  /  [",
-            S[.(reference)](t), " / {", 1 - S[.(reference)](t),
+        if(transform=="odds")
+          ylab <- c(bquote(paste("[", S(t), "/{", 1-S(t), "}] / [",
+            S[.(reference)](t), "/{", 1-S[.(reference)](t),
             "}]", sep="")), expression())
       }
     }
@@ -675,11 +714,10 @@ plot.stdCoxph <- function(x, plot.CI=TRUE, CI.type="plain", CI.level=0.95,
   do.call("plot", args=args)
   legend <- NULL
   for(i in 1:nX){
-    lines(t, est[, i])
-    points(t, est[, i], pch=-1+i, cex=1.3)
+    lines(t, est[, i], col=i)
     if(plot.CI){
-      lines(t, upper[, i], lty="dashed")
-      lines(t, lower[, i], lty="dashed")
+      lines(t, upper[, i], lty="dashed", col=i)
+      lines(t, lower[, i], lty="dashed", col=i)
     }
     temp <- as.character(x[i]) 
     legend <- c(legend, paste(object$X, "=", object$x[i])) 
@@ -688,7 +726,8 @@ plot.stdCoxph <- function(x, plot.CI=TRUE, CI.type="plain", CI.level=0.95,
     yl <- ylim[2]
   else
     yl <- args$ylim[2]      
-  legend(x=legendpos, legend=legend, pch=0:(i-1), bty="n")
+  legend(x=legendpos, legend=legend, lty=rep(1, length(x)), col=1:length(x), 
+    bty="n")
 
 }
 
@@ -704,18 +743,16 @@ parfrailty <- function(formula, data, clusterid, init){
     eta <- exp(par[2])
     phi <- exp(par[3])
     beta <- as.matrix(par[4:npar])
-    B <- as.vector(X %*% beta)
-    h <- delta * log(eta * t^(eta - 1) / alpha^eta * exp(B))
-    H <- (t / alpha)^eta * exp(B)
-    Hstar <- (tstar / alpha)^eta * exp(B)
+    B <- as.vector(X%*%beta)
+    h <- delta*log(eta*t^(eta-1)/alpha^eta*exp(B))
+    H <- (t/alpha)^eta*exp(B)
+    Hstar <- (tstar/alpha)^eta*exp(B)
     h <- aggr(h, clusters)
     H <- aggr(H, clusters)
     Hstar <- aggr(Hstar, clusters)
-    G <- d * log(phi) + cumsum(c(0, log(1 / phi + j)))[d + 1]    
-    
-    #Note: log-likelihood defined here as mean instead of sum
-    ll <- sum(G + h + 1 / phi * log(1 + phi * Hstar) - (1 / phi + d) * 
-      log(1 + phi * H))
+    G <- d*log(phi)+cumsum(c(0, log(1/phi+j)))[d+1]    
+    ll <- sum(G+h+1/phi*log(1+phi*Hstar)-(1/phi+d)*
+      log(1+phi*H))
     
     return(ll)
     
@@ -730,43 +767,43 @@ parfrailty <- function(formula, data, clusterid, init){
     beta <- as.matrix(par[4:npar])
 
     #construct elements for gradient
-    B <- as.vector(X %*% beta)
-    h.eta <- delta * (1 + eta * (log(t) - log(alpha)))
-    h.beta <- X * delta
-    H <- (t / alpha)^eta * exp(B)
-    Hstar <- (tstar / alpha)^eta * exp(B)
-    H.eta <- eta * log(t / alpha) * H
-    Hstar.eta <- eta * log(tstar / alpha) * Hstar
-    Hstar.eta[tstar == 0] <- 0
-    H.beta <- X * H
-    Hstar.beta <- X * Hstar
+    B <- as.vector(X%*%beta)
+    h.eta <- delta*(1+eta*(log(t)-log(alpha)))
+    h.beta <- X*delta
+    H <- (t/alpha)^eta*exp(B)
+    Hstar <- (tstar/alpha)^eta*exp(B)
+    H.eta <- eta*log(t/alpha)*H
+    Hstar.eta <- eta*log(tstar/alpha)*Hstar
+    Hstar.eta[tstar==0] <- 0
+    H.beta <- X*H
+    Hstar.beta <- X*Hstar
 
     #aggregate elements over clusterid
-    h.alpha <- - d * eta
+    h.alpha <--d*eta
     h.eta <- aggr(h.eta, clusters)
     h.beta <- aggr(h.beta, clusters)
     H <- aggr(H, clusters)
     Hstar <- aggr(Hstar, clusters)
-    H.alpha <- - eta * H
+    H.alpha <--eta*H
     H.eta <- aggr(H.eta, clusters)
     Hstar.eta <- aggr(Hstar.eta, clusters)
     H.beta <- aggr(H.beta, clusters)
     Hstar.beta <- aggr(Hstar.beta, clusters)
 
-    Hstar.alpha <- - eta * Hstar
-    K <- H / (1 + phi * H)
-    Kstar <- Hstar / (1 + phi * Hstar)
-    G.phi <- d - cumsum(c(0, 1 / (1 + phi * j)))[d + 1]
+    Hstar.alpha <--eta*Hstar
+    K <- H/(1+phi*H)
+    Kstar <- Hstar/(1+phi*Hstar)
+    G.phi <- d-cumsum(c(0, 1/(1+phi*j)))[d+1]
 
     #first derivatives of the log-likelihood
-    dl.dlogalpha <- h.alpha + Hstar.alpha / (1 + phi * Hstar) - 
-      (1 + phi * d) * H.alpha / (1+phi*H)
-    dl.dlogeta <- h.eta + Hstar.eta / (1 + phi * Hstar) - (1 + phi * d) * 
-      H.eta / (1 + phi * H)
-    dl.dlogphi <- G.phi + 1 / phi * (log(1 + phi * H) - 
-      log(1 + phi * Hstar)) + Kstar - (1 + d * phi) * K 
-    dl.dlogbeta <- as.matrix(h.beta + Hstar.beta / (1 + phi * Hstar) - 
-      (1 + phi * d) * H.beta / (1 + phi * H))
+    dl.dlogalpha <- h.alpha+Hstar.alpha/(1+phi*Hstar)-
+      (1+phi*d)*H.alpha/(1+phi*H)
+    dl.dlogeta <- h.eta+Hstar.eta/(1+phi*Hstar)-(1+phi*d)*
+      H.eta/(1+phi*H)
+    dl.dlogphi <- G.phi+1/phi*(log(1+phi*H)-
+      log(1+phi*Hstar))+Kstar-(1+d*phi)*K 
+    dl.dlogbeta <- as.matrix(h.beta+Hstar.beta/(1+phi*Hstar)-
+      (1+phi*d)*H.beta/(1+phi*H))
 
     #score contributions 
     scores <- cbind(dl.dlogalpha, dl.dlogeta, dl.dlogphi, dl.dlogbeta)
@@ -790,22 +827,22 @@ parfrailty <- function(formula, data, clusterid, init){
     beta <- as.matrix(par[4:npar])
 
     #construct elements for hessian
-    B <- as.vector(X %*% beta)
-    XX <- c(X) * X[rep(1:nrow(X), nbeta), ]
-    h.eta <- delta * (1 + eta * (log(t) - log(alpha)))
-    H <- (t / alpha)^eta * exp(B)
-    Hstar <- (tstar / alpha)^eta * exp(B)
-    H.eta <- eta * log(t / alpha) * H
-    Hstar.eta <- eta * log(tstar / alpha) * Hstar
-    Hstar.eta[tstar == 0] <- 0
-    H.eta.eta <- H.eta + eta^2 * (log(t / alpha))^2 * H
-    Hstar.eta.eta <- Hstar.eta + eta^2 * (log(tstar / alpha))^2 * Hstar
-    Hstar.eta.eta[tstar == 0] <- 0
-    H.eta.beta <- eta * log(t / alpha) * (H * X)
-    Hstar.eta.beta <- eta * log(tstar / alpha) * (Hstar * X)
-    Hstar.eta.beta[tstar == 0] <- 0
-    H.beta <- cbind(H[rep(1:length(H), nbeta)] * XX, clusters)
-    Hstar.beta <- cbind(Hstar[rep(1:length(H), nbeta)] * XX, clusters)
+    B <- as.vector(X%*%beta)
+    XX <- c(X)*X[rep(1:nrow(X), nbeta), ]
+    h.eta <- delta*(1+eta*(log(t)-log(alpha)))
+    H <- (t/alpha)^eta*exp(B)
+    Hstar <- (tstar/alpha)^eta*exp(B)
+    H.eta <- eta*log(t/alpha)*H
+    Hstar.eta <- eta*log(tstar/alpha)*Hstar
+    Hstar.eta[tstar==0] <- 0
+    H.eta.eta <- H.eta+eta^2*(log(t/alpha))^2*H
+    Hstar.eta.eta <- Hstar.eta+eta^2*(log(tstar/alpha))^2*Hstar
+    Hstar.eta.eta[tstar==0] <- 0
+    H.eta.beta <- eta*log(t/alpha)*(H*X)
+    Hstar.eta.beta <- eta*log(tstar/alpha)*(Hstar*X)
+    Hstar.eta.beta[tstar==0] <- 0
+    H.beta <- cbind(H[rep(1:length(H), nbeta)]*XX, clusters)
+    Hstar.beta <- cbind(Hstar[rep(1:length(H), nbeta)]*XX, clusters)
 
     #aggregate over clusterid
     h.eta <- aggr(h.eta, clusters)
@@ -819,101 +856,101 @@ parfrailty <- function(formula, data, clusterid, init){
     Hstar.eta.beta <- aggr(Hstar.eta.beta, clusters)
 
     h.alpha.alpha <- 0
-    h.alpha.eta <- - d * eta
-    h.eta.eta <- h.eta - d
-    H.alpha <- - eta * H
-    Hstar.alpha <- - eta * Hstar
-    H.alpha.alpha <- eta^2 * H
-    Hstar.alpha.alpha <- eta^2 * Hstar
-    H.alpha.eta <- - eta * (H + H.eta)
-    Hstar.alpha.eta <- - eta * (Hstar + Hstar.eta)
+    h.alpha.eta <--d*eta
+    h.eta.eta <- h.eta-d
+    H.alpha <--eta*H
+    Hstar.alpha <--eta*Hstar
+    H.alpha.alpha <- eta^2*H
+    Hstar.alpha.alpha <- eta^2*Hstar
+    H.alpha.eta <--eta*(H+H.eta)
+    Hstar.alpha.eta <--eta*(Hstar+Hstar.eta)
 
-    K <- H / (1 + phi * H)
-    Kstar <- Hstar / (1 + phi * Hstar)
-    G.phi.phi <- cumsum(c(0,phi * j / (1 + phi * j)^2))[d + 1]
+    K <- H/(1+phi*H)
+    Kstar <- Hstar/(1+phi*Hstar)
+    G.phi.phi <- cumsum(c(0,phi*j/(1+phi*j)^2))[d+1]
 
     #derivative of gradient wrt logalpha wrt all parameters except beta
-    dl.dlogalpha.dlogalpha <- sum(h.alpha.alpha + Hstar.alpha.alpha / 
-      (1 + phi * Hstar) - phi * (Hstar.alpha / (1 + phi * Hstar))^2 -
-      (1 + phi * d) * (H.alpha.alpha / (1 + phi * H) -
-      phi * (H.alpha / (1 + phi * H))^2))
-    dl.dlogalpha.dlogeta <- sum(h.alpha.eta + Hstar.alpha.eta / 
-      (1 + phi * Hstar) - phi * Hstar.alpha * Hstar.eta / 
-      (1 + phi * Hstar)^2 - (1 + phi * d) * (H.alpha.eta / (1 + phi * H) -
-      phi * H.alpha * H.eta / (1 + phi * H)^2))
-    dl.dlogalpha.dlogphi <- sum(phi * ( - Hstar.alpha * Hstar / 
-      (1 + phi * Hstar)^2 + H.alpha * H / (1 + phi * H)^2 - 
-      d * (H.alpha / (1 + phi * H) - phi * H.alpha * H / (1 + phi * H)^2)))
+    dl.dlogalpha.dlogalpha <- sum(h.alpha.alpha+Hstar.alpha.alpha/
+      (1+phi*Hstar)-phi*(Hstar.alpha/(1+phi*Hstar))^2 -
+      (1+phi*d)*(H.alpha.alpha/(1+phi*H) -
+      phi*(H.alpha/(1+phi*H))^2))
+    dl.dlogalpha.dlogeta <- sum(h.alpha.eta+Hstar.alpha.eta/
+      (1+phi*Hstar)-phi*Hstar.alpha*Hstar.eta/
+      (1+phi*Hstar)^2-(1+phi*d)*(H.alpha.eta/(1+phi*H) -
+      phi*H.alpha*H.eta/(1+phi*H)^2))
+    dl.dlogalpha.dlogphi <- sum(phi*(-Hstar.alpha*Hstar/
+      (1+phi*Hstar)^2+H.alpha*H/(1+phi*H)^2-
+      d*(H.alpha/(1+phi*H)-phi*H.alpha*H/(1+phi*H)^2)))
     ddl.dlogalpha <- cbind(dl.dlogalpha.dlogalpha, dl.dlogalpha.dlogeta, 
       dl.dlogalpha.dlogphi)
 
     #derivative of gradient wrt logeta wrt all parameters except beta
-    dl.dlogeta.dlogeta <- sum(h.eta.eta + Hstar.eta.eta / (1 + phi * Hstar) -
-      phi * (Hstar.eta / (1 + phi * Hstar))^2 - (1 + phi * d) *
-      (H.eta.eta / (1 + phi * H) - phi * (H.eta / (1 + phi * H))^2))
-    dl.dlogeta.dlogphi <- sum(phi * ( - Hstar.eta * Hstar / 
-      (1 + phi * Hstar)^2 + H.eta * H / (1 + phi * H)^2 - 
-      d * (H.eta / (1 + phi * H) - phi * H.eta * H / (1 + phi * H)^2)))
+    dl.dlogeta.dlogeta <- sum(h.eta.eta+Hstar.eta.eta/(1+phi*Hstar) -
+      phi*(Hstar.eta/(1+phi*Hstar))^2-(1+phi*d) *
+      (H.eta.eta/(1+phi*H)-phi*(H.eta/(1+phi*H))^2))
+    dl.dlogeta.dlogphi <- sum(phi*(-Hstar.eta*Hstar/
+      (1+phi*Hstar)^2+H.eta*H/(1+phi*H)^2-
+      d*(H.eta/(1+phi*H)-phi*H.eta*H/(1+phi*H)^2)))
     ddl.dlogeta <- cbind(dl.dlogalpha.dlogeta, dl.dlogeta.dlogeta, 
       dl.dlogeta.dlogphi)
 
     #derivative of gradient wrt logphi wrt all parameters except beta
-    dl.dlogphi.dlogphi <- sum(G.phi.phi + 1 / phi * 
-      (log(1 + phi * Hstar) - log(1 + phi * H))+ K - Kstar + phi 
-      * (K^2 - Kstar^2) + d * phi * K * (phi * K - 1))
+    dl.dlogphi.dlogphi <- sum(G.phi.phi+1/phi*
+      (log(1+phi*Hstar)-log(1+phi*H))+ K-Kstar+phi 
+     *(K^2-Kstar^2)+d*phi*K*(phi*K-1))
     ddl.dlogphi <- cbind(dl.dlogalpha.dlogphi, dl.dlogeta.dlogphi, 
       dl.dlogphi.dlogphi)
 
     #derivatives of gradients wrt (logalpha, logeta, logphi) wrt beta
-    H <- (t / alpha)^eta * exp(B)
-    Hstar <- (tstar / alpha)^eta * exp(B)
-    XX <- c(X) * X[rep(1:nrow(X), nbeta), ]
+    H <- (t/alpha)^eta*exp(B)
+    Hstar <- (tstar/alpha)^eta*exp(B)
+    XX <- c(X)*X[rep(1:nrow(X), nbeta), ]
     nbeta_rep <- rep(1:nbeta, each=nrow(X))
-    H.beta <- as.matrix(aggr(H * X, clusters)) 
-    H.beta2 <- H.beta[rep(1:nrow(H.beta), nbeta), ] * c(H.beta)
-    Hstar.beta <- as.matrix(aggr(Hstar * X, clusters))
-    Hstar.beta2 <- Hstar.beta[rep(1:nrow(Hstar.beta), nbeta), ] * c(Hstar.beta)
-    Hstar.beta.beta <- data.table(nbeta_rep, clusters, Hstar * XX)
-    H.beta.beta <- data.table(nbeta_rep, clusters, H * XX)
+    H.beta <- as.matrix(aggr(H*X, clusters)) 
+    H.beta2 <- H.beta[rep(1:nrow(H.beta), nbeta), ]*c(H.beta)
+    Hstar.beta <- as.matrix(aggr(Hstar*X, clusters))
+    Hstar.beta2 <- Hstar.beta[rep(1:nrow(Hstar.beta), nbeta), ]*c(Hstar.beta)
+    Hstar.beta.beta <- data.table(nbeta_rep, clusters, Hstar*XX)
+    H.beta.beta <- data.table(nbeta_rep, clusters, H*XX)
     H <- aggr(H, clusters)
     Hstar <- aggr(Hstar, clusters)
-    Hstar2 <- phi * Hstar.beta2 / (1 + phi * Hstar)^2
-    H2 <- phi * (1 + d * phi) * H.beta2 / (1 + phi * H)^2
+    Hstar2 <- phi*Hstar.beta2/(1+phi*Hstar)^2
+    H2 <- phi*(1+d*phi)*H.beta2/(1+phi*H)^2
     Hstar.beta.beta <- data.table(clusters, nbeta_rep, Hstar.beta.beta)
     Hstar.beta.beta <- as.matrix(Hstar.beta.beta[, j=lapply(.SD, sum), 
       by=.(nbeta_rep, clusters)])[, -1:-2, drop=FALSE]
     H.beta.beta <- data.table(clusters, nbeta_rep, H.beta.beta)
     H.beta.beta <- as.matrix(H.beta.beta[, j=lapply(.SD, sum), 
       by=.(nbeta_rep, clusters)])[, -1:-2, drop=FALSE]
-    Hstar1 <- Hstar.beta.beta / (1 + phi * Hstar)
-    H1 <- (1 + d * phi) * H.beta.beta / (1 + phi * H)
-    H.alpha.beta <- - eta * H.beta
-    Hstar.alpha.beta <- - eta * Hstar.beta
+    Hstar1 <- Hstar.beta.beta/(1+phi*Hstar)
+    H1 <- (1+d*phi)*H.beta.beta/(1+phi*H)
+    H.alpha.beta <--eta*H.beta
+    Hstar.alpha.beta <--eta*Hstar.beta
 
-    dl.dlogalpha.dlogbeta <- colSums(as.matrix(Hstar.alpha.beta / 
-      (1 + phi * Hstar) - phi * Hstar.alpha * Hstar.beta / 
-      (1 + phi * Hstar)^2 - (1 + phi * d) * (H.alpha.beta / 
-      (1 + phi * H) - phi * H.alpha * H.beta / (1 + phi * H)^2)))
+    dl.dlogalpha.dlogbeta <- colSums(as.matrix(Hstar.alpha.beta/
+      (1+phi*Hstar)-phi*Hstar.alpha*Hstar.beta/
+      (1+phi*Hstar)^2-(1+phi*d)*(H.alpha.beta/
+      (1+phi*H)-phi*H.alpha*H.beta/(1+phi*H)^2)))
     ddl.dlogalpha <- cbind(ddl.dlogalpha, t(dl.dlogalpha.dlogbeta))
 
    
-    dl.dlogeta.dlogbeta <- t(colSums(as.matrix(Hstar.eta.beta / 
-      (1 + phi * Hstar) - phi * Hstar.eta * Hstar.beta / 
-      (1 + phi * Hstar)^2 - (1 + phi * d) * (H.eta.beta / (1 + phi * H) -
-      phi * H.eta * H.beta / (1 + phi * H)^2))))
+    dl.dlogeta.dlogbeta <- t(colSums(as.matrix(Hstar.eta.beta/
+      (1+phi*Hstar)-phi*Hstar.eta*Hstar.beta/
+      (1+phi*Hstar)^2-(1+phi*d)*(H.eta.beta/(1+phi*H) -
+      phi*H.eta*H.beta/(1+phi*H)^2))))
     ddl.dlogeta <- cbind(ddl.dlogeta, dl.dlogeta.dlogbeta)
 
     
-    dl.dlogphi.dlogbeta <- t(colSums(as.matrix(phi * 
-      ( - Hstar.beta * Hstar / (1 + phi * Hstar)^2 + H.beta * H / 
-      (1 + phi * H)^2 - d * (H.beta / (1 + phi * H) - phi * H.beta * H / 
-      (1 + phi * H)^2)))))
+    dl.dlogphi.dlogbeta <- t(colSums(as.matrix(phi*
+      (-Hstar.beta*Hstar/(1+phi*Hstar)^2+H.beta*H/
+      (1+phi*H)^2-d*(H.beta/(1+phi*H)-phi*H.beta*H/
+      (1+phi*H)^2)))))
     ddl.dlogphi <- cbind(ddl.dlogphi, dl.dlogphi.dlogbeta)
 
     #derivative of gradient wrt to beta wrt to all parameters
-    dl.dlogbeta.dlogbeta <- (Hstar.beta.beta / (1 + phi * Hstar) -
-      phi * Hstar.beta2 / (1 + phi * Hstar)^2 - (1 + phi * d) *
-      (H.beta.beta / (1 + phi * H) - phi * H.beta2 / (1 + phi * H)^2))
+    dl.dlogbeta.dlogbeta <- (Hstar.beta.beta/(1+phi*Hstar) -
+      phi*Hstar.beta2/(1+phi*Hstar)^2-(1+phi*d) *
+      (H.beta.beta/(1+phi*H)-phi*H.beta2/(1+phi*H)^2))
     nbeta_rep2 <- rep(1:nbeta, each=length(H))
     dl.dlogbeta.dlogbeta <- data.table(nbeta_rep2, dl.dlogbeta.dlogbeta)
     dl.dlogbeta.dlogbeta <- as.matrix(dl.dlogbeta.dlogbeta[, 
@@ -939,18 +976,18 @@ parfrailty <- function(formula, data, clusterid, init){
   n <- nrow(X)
   ncluster <- length(unique(clusters))
   nbeta <- ncol(X)
-  npar <- 3 + nbeta
+  npar <- 3+nbeta
   if(missing(init)) init <- c(rep(0, npar))
   
   #extract start variable, end variable and event variable
   Y <- model.extract(frame=model.frame(formula=formula, data=data.temp), 
     component="response")
-  if (ncol(Y) == 2) {
+  if (ncol(Y)==2) {
     tstar <- rep(0, nrow(data.temp))
     t <- Y[, 1]
     delta <- Y[, 2]
   }
-  if (ncol(Y) == 3) {
+  if (ncol(Y)==3) {
     tstar <- Y[, 1]
     t <- Y[, 2]
     delta <- Y[, 3]
@@ -962,15 +999,15 @@ parfrailty <- function(formula, data, clusterid, init){
   j <- 0:(D-1)
 
   #---MODEL FITTING
- 
+  
   #maximize log likelihood
   fit <- optim(par=init, fn=like, gr=gradientfunc, method="BFGS", hessian=FALSE, 
     control=list(fnscale=-1))
   est <- fit$par
-
+  
   #calculate score contributions
   score <- scorefunc(par=est)
-  
+ 
   #calculate hessian
   hessian <- hessianfunc(par=est)
   
@@ -1001,15 +1038,16 @@ print.parfrailty <- function(x, ...){
 }
 
 summary.parfrailty <- function(object, CI.type="plain", CI.level=0.95, 
-  digits=max(3L, getOption("digits") - 3L), ...){
+  digits=max(3L, getOption("digits")-3L), ...){
   if(missing(CI.level)) CI.level <- 0.95
   if(missing(CI.type)) CI.type <- "plain"
 
   ### Inference
-  se <- sqrt(diag(object$vcov))
-  zvalue <- object$est / se
-  pvalue <- 2 * pnorm( - abs(zvalue))
-  confidence.interval <- CI(est=object$est, se=se,
+  var <- diag(object$vcov)
+  se <- sqrt(var)
+  zvalue <- object$est/se
+  pvalue <- 2*pnorm(-abs(zvalue))
+  confidence.interval <- CI(est=object$est, var=var,
                             CI.type=CI.type, CI.level=CI.level)
   colnames(confidence.interval) <- c("Lower limit", "Upper limit")
 
@@ -1036,12 +1074,12 @@ summary.parfrailty <- function(object, CI.type="plain", CI.level=0.95,
 }
 
 ### Print summary function
-print.summary.parfrailty <- function(x, digits=max(3L, getOption("digits") - 3L),
+print.summary.parfrailty <- function(x, digits=max(3L, getOption("digits")-3L),
                              ...){
   ## Function call
   cat("Call:", "\n")
   print.default(x$call)
-  level <- x$CI.level * 100
+  level <- x$CI.level*100
   CI.text <- paste0(as.character(level),"%")
   cat("\nEstimated parameters in the Gamma-Weibull frailty model", "\n")
   cat("\n")
@@ -1058,7 +1096,7 @@ print.summary.parfrailty <- function(x, digits=max(3L, getOption("digits") - 3L)
   
 }
 
-stdParfrailty <- function(fit, data, X, x, t, clusterid){
+stdParfrailty <- function(fit, data, X, x, t, clusterid, subsetnew){
   
   #---PREPARATION---
 
@@ -1067,20 +1105,27 @@ stdParfrailty <- function(fit, data, X, x, t, clusterid){
   out <- list(fit=fit, X=X)
   
   #delete rows that did not contribute to the model fit,
-  #e.g. not in subset or with missing data
-  #note: object = fit does not work when fit is parfrailty object
+  #e.g. missing data or in subset for fit 
+  #note: object=fit does not work when fit is parfrailty object
   m <- model.matrix(object=formula, data=data)
   data <- data[match(rownames(m), rownames(data)), ]
   n <- nrow(data)
+  
+  #make new subset if supplied
+  arguments <- as.list(match.call())
+  if("subsetnew" %in% names(arguments))
+    subsetnew  <- as.numeric(eval(expr=arguments$subsetnew, envir=data))
+  else
+    subsetnew  <- rep(1, n)
  
   #extract end variable and event variable
   Y <- model.extract(frame=model.frame(formula=formula, data=data), 
     component="response")
-  if(ncol(Y) == 2){
+  if(ncol(Y)==2){
     end <- Y[, 1]
     event <- Y[, 2]
   }
-  if(ncol(Y) == 3){
+  if(ncol(Y)==3){
     end <- Y[, 2]
     event <- Y[, 3]
   }
@@ -1141,7 +1186,7 @@ stdParfrailty <- function(fit, data, X, x, t, clusterid){
 
   for(j in 1:nt){
   
-    if(t[j] == 0){
+    if(t[j]==0){
       est[j, ] <- 1
       vcov[[j]] <- matrix(0, nrow=nX, ncol=nX)
     }
@@ -1164,18 +1209,20 @@ stdParfrailty <- function(fit, data, X, x, t, clusterid){
       predX <- colSums(beta*t(m))
       temp <- 1+phi*H0t*exp(predX)
       si[, i] <- temp^(-1/phi)
-      SI.logalpha[i] <- sum(H0t*eta*exp(predX)/temp^(1/phi+1)) / n.cluster
-      SI.logeta[i] <- sum(-H0t*exp(predX)*log(t[j]/alpha)*eta/temp^(1/phi+1)) /
+      SI.logalpha[i] <- mean(subsetnew*H0t*eta*exp(predX)/temp^(1/phi+1))*n/
         n.cluster
-      SI.logphi[i] <- sum(log(temp)/(phi*temp^(1/phi))-
-        H0t*exp(predX)/temp^(1/phi+1)) / n.cluster
-      SI.beta[i, ] <- colSums(-H0t*exp(predX)*m/temp^(1/phi+1)) / n.cluster
+      SI.logeta[i] <- mean(subsetnew*(-H0t)*exp(predX)*log(t[j]/alpha)*eta/
+        temp^(1/phi+1))*n/n.cluster
+      SI.logphi[i] <- mean(subsetnew*log(temp)/(phi*temp^(1/phi))-
+        H0t*exp(predX)/temp^(1/phi+1))*n/n.cluster
+      SI.beta[i, ] <- colMeans(subsetnew*(-H0t)*exp(predX)*m/temp^(1/phi+1))*
+        n/n.cluster
     }
-    est[j, ] <- colMeans(si, na.rm=TRUE)
+    est[j, ] <- colSums(subsetnew*si, na.rm=TRUE)/sum(subsetnew)
    
     #---VARIANCE OF SURVIVAL PROBABILITIES AT VALUES SPECIFIED BY x ---
 
-    sres <- si - matrix(rep(est[j, ],each=n), nrow=n, ncol=nX)
+    sres <- subsetnew*(si-matrix(rep(est[j, ],each=n), nrow=n, ncol=nX))
     sres <- aggr(sres, clusters)
     coefres <- fit$score
     res <- cbind(sres, coefres)
@@ -1184,12 +1231,12 @@ stdParfrailty <- function(fit, data, X, x, t, clusterid){
 
     #Note: the term n/n.cluster is because SI.logalpha, SI.logeta, SI.logphi,
     #and SI.beta are clustered, which they are not in stdCoxph
-    SI <- cbind(-diag(nX)*n/n.cluster, SI.logalpha, SI.logeta, SI.logphi, 
-      SI.beta)
+    SI <- cbind(-diag(nX)*mean(subsetnew)*n/n.cluster, SI.logalpha, SI.logeta, 
+      SI.logphi, SI.beta)
 
-    betaI <- cbind(matrix(0, nrow=npar, ncol=nX), -solve(fit$vcov) / n.cluster)
+    betaI <- cbind(matrix(0, nrow=npar, ncol=nX), -solve(fit$vcov)/n.cluster)
     I <- rbind(SI, betaI)
-    V <- (solve(I) %*% J %*% t(solve(I)) / n.cluster)[1:nX, 1:nX]
+    V <- (solve(I)%*%J%*%t(solve(I))/n.cluster)[1:nX, 1:nX]
     vcov[[j]] <- V
 
     }

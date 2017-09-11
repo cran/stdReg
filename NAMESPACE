@@ -5,8 +5,9 @@ importFrom(stats, "delete.response", "glm", "model.matrix",
 		"printCoefmat")
 importFrom(survival, "coxph", "coxph.detail")
 importFrom(data.table, "data.table")
+importFrom(numDeriv, "grad")
 
-export(stdGlm, stdCoxph, stdParfrailty, parfrailty)
+export(stdGlm, stdCoxph, stdParfrailty, parfrailty, delmet, CI)
 
 S3method(summary, stdGlm)
 S3method(print, summary.stdGlm)

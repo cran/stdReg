@@ -1,12 +1,12 @@
 \name{stdGlm}
+
 \alias{stdGlm}
-%- Also NEED an '\alias' for EACH other topic documented here.
+
 \title{
-%%  ~~function to do ... ~~
 Regression standardization in generalized linear models
 }
+
 \description{
-%%  ~~ A concise (1-5 lines) description of what the function does. ~~
 \code{stdGlm} performs regression standardization in generalized linear models,
 at specified values of the exposure, over the sample covariate distribution.
 Let \eqn{Y}, \eqn{X}, and \eqn{Z} be the outcome, the exposure, and a
@@ -15,30 +15,26 @@ model to estimate the standardized
 mean \eqn{\theta(x)=E\{E(Y|X=x,Z)\}}, where \eqn{x} is a specific value of \eqn{X}, 
 and the outer expectation is over the marginal distribution of \eqn{Z}. 
 }
+
 \usage{
-stdGlm(fit, data, X, x, clusterid, case.control = FALSE)
+stdGlm(fit, data, X, x, clusterid, case.control = FALSE, subsetnew)
 }
-%- maybe also 'usage' for other objects documented here.
+
 \arguments{
   \item{fit}{
-%%     ~~Describe \code{formula} here~~
 an object of class \code{"glm"}, as returned by the \code{glm} function 
   in the \code{stats} package. If arguments \code{weights} and/or \code{subset}
   are used when fitting the model, then the same weights and subset are used 
   in \code{stdGlm}.  
-}
-  
+} 
   \item{data}{
-%%     ~~Describe \code{data} here~~
 a data frame containing the variables in the model. This should be the same 
 data frame as was used to fit the model in \code{fit}.
 }
   \item{X}{
-%%     ~~Describe \code{X} here~~
 a string containing the name of the exposure variable \eqn{X} in \code{data}.
 }
   \item{x}{
-%%     ~~Describe \code{x} here~~
 an optional vector containing the specific values of \eqn{X} at which to estimate 
 the standardized mean. If \eqn{X} is binary (0/1) or
 a factor, then \code{x} defaults to all values of \eqn{X}. If \eqn{X} is numeric,
@@ -46,19 +42,20 @@ then \code{x} defaults to the mean of \eqn{X}. If \code{x} is set to \code{NA},
 then \eqn{X} is not altered. This produces an estimate of the marginal mean
  \eqn{E(Y)=E\{E(Y|X,Z)\}}. 
 }
- 
   \item{clusterid}{
-%%     ~~Describe \code{clusters} here~~
 an optional string containing the name of a cluster identification variable when data are clustered. 
 }
   \item{case.control}{
-%%     ~~Describe \code{case.control} here~~
 logical. Do data come from a case-control study? Defaults to FALSE.
 }
-
+  \item{subsetnew}{
+an optional logical statement specifying a subset of observations to be used in 
+the standardization. This set is assumed to be a subset of the subset (if any)
+that was used to fit the regression model. 
 }
+}
+
 \details{
-%%  ~~ If necessary, more details than the description above ~~
 \code{stdGlm} assums that a generalized linear model 
 \deqn{\eta\{E(Y|X,Z)\}=h(X,Z;\beta)}
 has been fitted. The maximum likelihood estimate of \eqn{\beta} is used to obtain 
@@ -70,12 +67,8 @@ all subjects (i.e. all observed values of \eqn{Z}) to produce estimates
 The variance for \eqn{\hat{\theta}(x)} is obtained by the sandwich formula. 
 
 }
+
 \value{
-%%  ~Describe the value returned
-%%  If it is a LIST, use
-%%  \item{comp1 }{Description of 'comp1'}
-%%  \item{comp2 }{Description of 'comp2'}
-%% ...
 An object of class \code{"stdGlm"} is a list containing 
 \item{est}{
   a vector with length equal to \code{length(x)}, where element \code{j} is equal to 
@@ -88,17 +81,17 @@ An object of class \code{"stdGlm"} is a list containing
   \eqn{\hat{\theta}}(\code{x[j]}).
   }
 }
+
 \references{
-%% ~put references to the literature/web site here ~
 Rothman K.J., Greenland S., Lash T.L. (2008). \emph{Modern Epidemiology}, 3rd edition. 
 Lippincott, Williams \& Wilkins.
 }
+
 \author{
-%%  ~~who you are~~
 Arvid Sjolander. 
 }
+
 \note{
-%%  ~~further notes~~
 The variance calculation performed by \code{stdGlm} does not condition on 
 the observed covariates \eqn{\bar{Z}=(Z_1,...,Z_n)}. To see how this matters, note that 
 \deqn{var\{\hat{\theta}(x)\}=E[var\{\hat{\theta}(x)|\bar{Z}\}]+var[E\{\hat{\theta}(x)|\bar{Z}\}].} 
@@ -112,19 +105,16 @@ and thus the term \eqn{var[E\{\hat{\theta}(x)|\bar{Z}\}]} is not 0, unless one
 conditions on \eqn{\bar{Z}}. 
 }
 
-%% ~Make other sections like Warning with \section{Warning }{....} ~
-
-
 \examples{
 
 ##Example 1: continuous outcome
 n <- 1000
 Z <- rnorm(n)
 X <- rnorm(n, mean=Z)
-Y <- rnorm(n, mean=X + Z + 0.1 * X^2)
+Y <- rnorm(n, mean=X+Z+0.1*X^2)
 dd <- data.frame(Z, X, Y)
-fit <- glm(formula=Y ~ X + Z + I(X^2), data = dd)
-fit.std <- stdGlm(fit=fit, data = dd, X = "X", x = seq(-3,3,0.5))
+fit <- glm(formula=Y~X+Z+I(X^2), data=dd)
+fit.std <- stdGlm(fit=fit, data=dd, X="X", x=seq(-3,3,0.5))
 print(summary(fit.std))
 plot(fit.std)
 
@@ -132,10 +122,10 @@ plot(fit.std)
 n <- 1000
 Z <- rnorm(n)
 X <- rnorm(n, mean=Z)
-Y <- rbinom(n, 1, prob=(1 + exp(X + Z))^(-1))
+Y <- rbinom(n, 1, prob=(1+exp(X+Z))^(-1))
 dd <- data.frame(Z, X, Y)
-fit <- glm(formula=Y ~ X + Z + X*Z, family="binomial", data=dd)
-fit.std <- stdGlm(fit=fit, data=dd, X = "X", x=seq(-3,3,0.5))
+fit <- glm(formula=Y~X+Z+X*Z, family="binomial", data=dd)
+fit.std <- stdGlm(fit=fit, data=dd, X="X", x=seq(-3,3,0.5))
 print(summary(fit.std))
 plot(fit.std)
 }

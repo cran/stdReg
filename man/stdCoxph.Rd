@@ -1,12 +1,12 @@
 \name{stdCoxph}
+
 \alias{stdCoxph}
-%- Also NEED an '\alias' for EACH other topic documented here.
+
 \title{
-%%  ~~function to do ... ~~
 Regression standardization in Cox proportional hazards models
 }
+
 \description{
-%%  ~~ A concise (1-5 lines) description of what the function does. ~~
 \code{stdCoxph} performs regression standardization in Cox proportional hazards models,
 at specified values of the exposure, over the sample covariate distribution.
 Let \eqn{T}, \eqn{X}, and \eqn{Z} be the survival outcome, the exposure, and a
@@ -16,13 +16,13 @@ survival function \eqn{\theta(t,x)=E\{S(t|X=x,Z)\}}, where \eqn{t} is a specific
 \eqn{x} is a specific value of \eqn{X}, and the expectation is over the marginal 
 distribution of \eqn{Z}.     
 }
+
 \usage{
-stdCoxph(fit, data, X, x, t, clusterid)
+stdCoxph(fit, data, X, x, t, clusterid, subsetnew)
 }
-%- maybe also 'usage' for other objects documented here.
+
 \arguments{
   \item{fit}{
-%%     ~~Describe \code{formula} here~~
 an object of class \code{"coxph"}, as returned by the \code{coxph} function 
   in the \code{survival} package, but without special terms \code{strata}, \code{cluster} or \code{tt}. 
   Only \code{breslow} method for handling ties is allowed. If arguments 
@@ -30,16 +30,13 @@ an object of class \code{"coxph"}, as returned by the \code{coxph} function
   then the same weights and subset are used in \code{stdGlm}.  
 }
   \item{data}{
-%%     ~~Describe \code{data} here~~
 a data frame containing the variables in the model. This should be the same 
 data frame as was used to fit the model in \code{fit}.
 }
   \item{X}{
-%%     ~~Describe \code{X} here~~
 a string containing the name of the exposure variable \eqn{X} in \code{data}. 
 }
   \item{x}{
-%%     ~~Describe \code{x} here~~
 an optional vector containing the specific values of \eqn{X} at which to estimate 
 the standardized survival function. If \eqn{X} is binary (0/1) or
 a factor, then \code{x} defaults to all values of \eqn{X}. If \eqn{X} is numeric,
@@ -48,19 +45,21 @@ then \eqn{X} is not altered. This produces an estimate of the marginal survival
 function \eqn{S(t)=E\{S(t|X,Z)\}}.   
 }
   \item{t}{
-%%     ~~Describe \code{t} here~~
 an optional vector containing the specific values of \eqn{T} at which to estimate 
 the standardized survival function. It defaults to all the observed event times
 in \code{data}. 
 }
   \item{clusterid}{
-%%     ~~Describe \code{clusters} here~~
 an optional string containing the name of a cluster identification variable when data are clustered.
 }
-
+  \item{subsetnew}{
+an optional logical statement specifying a subset of observations to be used in 
+the standardization. This set is assumed to be a subset of the subset (if any)
+that was used to fit the regression model. 
 }
+}
+
 \details{
-%%  ~~ If necessary, more details than the description above ~~
 \code{stdCoxph} assumes that a Cox proportional hazards model 
 \deqn{\lambda(t|X,Z)=\lambda_0(t)exp\{h(X,Z;\beta)\}}
 has been fitted. Breslow's 
@@ -74,12 +73,8 @@ to produce estimates
 \deqn{\hat{\theta}(t,x)=\sum_{i=1}^n \hat{S}(t|X=x,Z_i)/n.} 
 The variance for \eqn{\hat{\theta}(t,x)} is obtained by the sandwich formula. 
 }
+
 \value{
-%%  ~Describe the value returned
-%%  If it is a LIST, use
-%%  \item{comp1 }{Description of 'comp1'}
-%%  \item{comp2 }{Description of 'comp2'}
-%% ...
 An object of class \code{"stdCoxph"} is a list containing 
 \item{est}{
   a matrix with \code{length(t)} rows and \code{length(x)} columns, where the element 
@@ -92,8 +87,8 @@ An object of class \code{"stdCoxph"} is a list containing
   and \eqn{\hat{\theta}}(\code{t[k]},\code{x[j]}).
   }
 }
+
 \references{
-%% ~put references to the literature/web site here ~
 Makuch R.W. (1982). Adjusted survival curve estimation using covariates.
 \emph{Journal of Chronic Diseases} \bold{35}, 437-443.
 
@@ -104,12 +99,12 @@ Gail M.H. and Byar D.P. (1986). Variance calculations for direct adjusted surviv
 curves, with applications to testing for no treatement effect. \emph{Biometrical Journal}
 \bold{28}(5), 587-599. 
 }
+
 \author{
-%%  ~~who you are~~
 Arvid Sjolander
 }
+
 \note{
-%%  ~~further notes~~
 Standardized survival functions are sometimes referred to as (direct) adjusted
 survival functions in the literature.
 
@@ -132,8 +127,6 @@ conditions on \eqn{\bar{Z}}. The variance calculation by Gail and Byar (1986) ig
 and thus effectively conditions on \eqn{\bar{Z}}.      
 }
 
-%% ~Make other sections like Warning with \section{Warning }{....} ~
-
 \examples{
 
 require(survival)
@@ -141,12 +134,12 @@ require(survival)
 n <- 1000
 Z <- rnorm(n)
 X <- rnorm(n, mean=Z)
-T <- rexp(n, rate=exp(X + Z + X*Z)) #survival time
-C <- rexp(n, rate=exp(X + Z + X*Z)) #censoring time
+T <- rexp(n, rate=exp(X+Z+X*Z)) #survival time
+C <- rexp(n, rate=exp(X+Z+X*Z)) #censoring time
 U <- pmin(T, C) #time at risk
 D <- as.numeric(T < C) #event indicator
-dd <- data.frame(Z,X,U,D)
-fit <- coxph(formula=Surv(U, D) ~ X + Z + X*Z, data = dd, method = "breslow")
+dd <- data.frame(Z, X, U, D)
+fit <- coxph(formula=Surv(U, D)~X+Z+X*Z, data=dd, method="breslow")
 fit.std <- stdCoxph(fit=fit, data=dd, X="X", x=seq(-1,1,0.5), t=1:5)
 print(summary(fit.std, t=3))
 plot(fit.std)
