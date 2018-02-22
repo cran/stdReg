@@ -70,7 +70,8 @@ estimates of the survival function \eqn{S(t|X=x,Z)}:
 For each \eqn{t} in the \code{t} argument and for each \eqn{x} in the \code{x} argument, 
 these estimates are averaged across all subjects (i.e. all observed values of \eqn{Z})
 to produce estimates 
-\deqn{\hat{\theta}(t,x)=\sum_{i=1}^n \hat{S}(t|X=x,Z_i)/n.} 
+\deqn{\hat{\theta}(t,x)=\sum_{i=1}^n \hat{S}(t|X=x,Z_i)/n,} 
+where \eqn{Z_i} is the value of \eqn{Z} for subject \eqn{i}, \eqn{i=1,...,n}. 
 The variance for \eqn{\hat{\theta}(t,x)} is obtained by the sandwich formula. 
 }
 
@@ -96,7 +97,7 @@ Chang I.M., Gelman G., Pagano M. (1982). Corrected group prognostic curves
 and summary statistics. \emph{Journal of Chronic Diseases} \bold{35}, 669-674.
 
 Gail M.H. and Byar D.P. (1986). Variance calculations for direct adjusted survival
-curves, with applications to testing for no treatement effect. \emph{Biometrical Journal}
+curves, with applications to testing for no treatment effect. \emph{Biometrical Journal}
 \bold{28}(5), 587-599. 
 }
 
@@ -114,17 +115,19 @@ survival functions in the literature.
 the function will usually be considerably faster if \code{length(t)} is small.
 
 The variance calculation performed by \code{stdCoxph} does not condition on 
-the observed covariates \eqn{\bar{Z}=(Z_1,...,Z_n)}. To see how this matters, note that 
+the observed covariates \eqn{\bar{Z}=(Z_1,...,Z_n)}. To see how this matters, 
+note that 
 \deqn{var\{\hat{\theta}(t,x)\}=E[var\{\hat{\theta}(t,x)|\bar{Z}\}]+var[E\{\hat{\theta}(t,x)|\bar{Z}\}].} 
-The usual parameter \eqn{\beta} in a Cox proportional hazards model does not depend 
-on \eqn{\bar{Z}}. Thus, \eqn{E(\hat{\beta}|\bar{Z})} is 
-independent of \eqn{\bar{Z}} as well (since \eqn{E(\hat{\beta}|\bar{Z})=\beta}), so that the 
-term \eqn{var[E\{\hat{\beta}|\bar{Z}\}]} in the corresponding variance decomposition 
-for \eqn{var(\hat{\beta})} becomes equal to 0. However, \eqn{\theta(t,x)} depends 
-on \eqn{\bar{Z}} through the average over the sample distribution for \eqn{Z}, 
-and thus the term \eqn{var[E\{\hat{\theta}(t,x)|\bar{Z}\}]} is not 0, unless one 
-conditions on \eqn{\bar{Z}}. The variance calculation by Gail and Byar (1986) ignores this term,
-and thus effectively conditions on \eqn{\bar{Z}}.      
+The usual parameter \eqn{\beta} in a Cox proportional hazards model does not 
+depend on \eqn{\bar{Z}}. Thus, \eqn{E(\hat{\beta}|\bar{Z})} is independent of 
+\eqn{\bar{Z}} as well (since \eqn{E(\hat{\beta}|\bar{Z})=\beta}), so that the 
+term \eqn{var[E\{\hat{\beta}|\bar{Z}\}]} in the corresponding variance 
+decomposition for \eqn{var(\hat{\beta})} becomes equal to 0. However, 
+\eqn{\theta(t,x)} depends on \eqn{\bar{Z}} through the average over the sample 
+distribution for \eqn{Z}, and thus the term \eqn{var[E\{\hat{\theta}(t,x)|\bar{Z}\}]} 
+is not 0, unless one conditions on \eqn{\bar{Z}}. The variance calculation by 
+Gail and Byar (1986) ignores this term, and thus effectively conditions on 
+\eqn{\bar{Z}}.      
 }
 
 \examples{

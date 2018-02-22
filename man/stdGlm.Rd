@@ -56,16 +56,16 @@ that was used to fit the regression model.
 }
 
 \details{
-\code{stdGlm} assums that a generalized linear model 
+\code{stdGlm} assumes that a generalized linear model 
 \deqn{\eta\{E(Y|X,Z)\}=h(X,Z;\beta)}
 has been fitted. The maximum likelihood estimate of \eqn{\beta} is used to obtain 
 estimates of the mean \eqn{E(Y|X=x,Z)}:
 \deqn{\hat{E}(Y|X=x,Z)=\eta^{-1}\{h(X=x,Z;\hat{\beta})\}.} 
 For each \eqn{x} in the \code{x} argument, these estimates are averaged across 
 all subjects (i.e. all observed values of \eqn{Z}) to produce estimates  
-\deqn{\hat{\theta}(x)=\sum_{i=1}^n \hat{E}(t|X=x,Z_i)/n.}
+\deqn{\hat{\theta}(x)=\sum_{i=1}^n \hat{E}(Y|X=x,Z_i)/n,} 
+where \eqn{Z_i} is the value of \eqn{Z} for subject \eqn{i}, \eqn{i=1,...,n}.
 The variance for \eqn{\hat{\theta}(x)} is obtained by the sandwich formula. 
-
 }
 
 \value{

@@ -20,6 +20,19 @@ aggr <- function(x, clusters){
 
 }  
 
+confintall <- function(object, parm, level=0.95, fun, type="plain", ...){
+
+  est <- do.call(what=fun, args=list(est=object$est)) 
+  var <- delmet(fun=fun, est=object$est, vcov=object$vcov)
+  ci <- CI(est=est, var=var, CI.type=type, CI.level=level)
+  return(ci)
+}
+
+confint.stdGlm <- confintall
+confint.stdGee <- confintall
+confint.stdCoxph <- confintall
+confint.stdParfrailty <- confintall
+
 CI <- function(est, var, CI.type="plain", CI.level=0.95){
 
   se <- sqrt(var)
@@ -64,13 +77,15 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
   npar <- length(fit$coef)
   out <- list(fit=fit, X=X)
 
-  #delete rows that did not contribute to the model fit,
-  #e.g. missing data or not in subset for fit 
+  #Delete rows that did not contribute to the model fit,
+  #e.g. missing data or not in subset for fit.
+  #Need to have object=fit in model.matrix, since neither object=formula nor
+  #object=terms(fit) will remove rows not in subset.
   m <- model.matrix(object=fit)
   data <- data[match(rownames(m), rownames(data)), ]
   n <- nrow(data)
   
-  #make new subset if supplied
+  #Make new subset if supplied
   arguments <- as.list(match.call())
   if("subsetnew" %in% names(arguments))
     subsetnew  <-  as.numeric(eval(expr=arguments$subsetnew, envir=data))
@@ -81,13 +96,13 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
   #if(missing(clusters)) clusters <- 1:nrow(data)
   #but a problem when constructing meat in sandwich formula:
   #must always aggregate, which is a bit slow, even though much faster
-  #when using data.table than the aggregate function
+  #when using data.table than the aggregate function.
   if(!missing(clusterid))
-    n.cluster <- length(unique(data[, clusterid]))
+    ncluster <- length(unique(data[, clusterid]))
  
-  #assign values to x and reference if not supplied
-  #make sure x is a factor if data[, X] is a factor
-  #with the same levels as data[, X]
+  #Assign values to x and reference if not supplied.
+  #Make sure x is a factor if data[, X] is a factor
+  #with the same levels as data[, X].
   if(missing(x)){
     if(is.factor(data[, X]))
       x <- as.factor(levels(data[, X]))
@@ -117,17 +132,21 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
   out <- c(out, list(x=x))
  
   #---ESTIMATES OF MEANS AT VALUES SPECIFIED BY x ---
- 
+   
   pred <- matrix(nrow=n, ncol=nX)
   g <- family(fit)$mu.eta
   SI.beta <- matrix(nrow=nX, ncol=npar)
   for(i in 1:nX){
-    data.temp <- data
+    data.x <- data
     if(!is.na(x[i]))
-      data.temp[, X] <- x[i]
-    pred[, i] <- predict(object=fit, newdata=data.temp, type="response")
-    dmu.deta <- g(predict(object=fit, newdata=data.temp))
-    deta.dbeta <- model.matrix(object=formula, data=data.temp) 
+      data.x[, X] <- x[i]
+    pred[, i] <- predict(object=fit, newdata=data.x, type="response")
+    dmu.deta <- g(predict(object=fit, newdata=data.x))  
+    #Need object=terms(fit) here. If formula contains splines,
+    #then neither object=formula nor object=fit will not work when no variation 
+    #in exposure, since model.matrix needs to retrieve Boundary.knots 
+    #from terms(fit).
+    deta.dbeta <- model.matrix(object=terms(fit), data=data.x)  
     dmu.dbeta <- dmu.deta*deta.dbeta
     SI.beta[i, ] <- colMeans(subsetnew*weights*dmu.dbeta)
   }
@@ -136,7 +155,7 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
    
   #---VARIANCE OF MEANS AT VALUES SPECIFIED BY x---
    
-  ores <- weights*residuals(object=fit, type="response") *
+  ores <- weights*residuals(object=fit, type="response")*
     model.matrix(object=formula, data=data)
   mres <- subsetnew*weights*(pred-matrix(rep(est, each=n), nrow=n, 
     ncol=nX))
@@ -158,14 +177,14 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
   }
 
   SI <- cbind(-diag(nX)*mean(subsetnew*weights), SI.beta)
-  #Note: cov.unscaled gives weighted fisher info but without dispersion parameter
+  #cov.unscaled gives weighted fisher info but without dispersion parameter
   oI <- cbind(matrix(0, nrow=npar, ncol=nX), 
     -solve(summary(object=fit)$cov.unscaled)/n )   
   I <- rbind(SI, oI)
   if(missing(clusterid))
     V <- (solve(I)%*%J%*%t(solve(I))/n)[1:nX, 1:nX]
   else
-    V <- (solve(I)%*%J%*%t(solve(I))*n.cluster/n^2)[1:nX, 1:nX]
+    V <- (solve(I)%*%J%*%t(solve(I))*ncluster/n^2)[1:nX, 1:nX]
   vcov <- V
    
   out <- c(out, list(est=est, vcov=vcov))
@@ -231,7 +250,7 @@ summary.stdGlm <- function(object, CI.type="plain", CI.level=0.95,
     paste("upper",CI.level)))
   out <- c(object, list(est.table=est.table,transform=transform,
     contrast=contrast,reference=reference))
-
+  
   class(out) <- "summary.stdGlm"
   return(out)
 
@@ -345,6 +364,259 @@ plot.stdGlm <- function(x, CI.type="plain", CI.level=0.95,
   }
 }
 
+stdGee <- function(fit, data, X, x, clusterid, subsetnew){
+  
+  #---CHECKS---
+  
+  if(fit$cond==FALSE)
+    stop("stdGee is only implemented for gee object with cond=TRUE. For cond=FALSE, use stdGlm.")
+  link <- summary(fit)$link
+  if(link!="identity" & link!="log")
+    stop("stdGee is only implemented for gee object with identity link or log link.")  
+  
+  #---PREPARATION---
+  
+  #The gee object does not contain element formula, so need to fiddle a bit.
+  ff <- fit$call["formula"] 
+  #class(formula(ff)) will be equal to "formula" if the formula is specified 
+  #expclicitly in the call to gee, e.g. fit <- gee(formula=y~x,...)
+  #class(formula(ff)) will be equal to "function" if the formula is specified 
+  #implicitly in the call to gee, e.g. f <- y~x, fit <- gee(formula=f,...).
+  #In the latter case, as.character(ff) is equal to "f", so that
+  #get(as.character(ff)) evaluates to y~x (hopefully). 
+  if(class(formula(ff))=="formula"){
+    formula <- formula(ff)
+  }
+  else{
+    formula <- get(as.character(ff))  
+  }
+  weights <- rep(1, nrow(fit$x)) #gee does not allow for weights
+  npar <- length(fit$coef)
+  out <- list(fit=fit, X=X)
+  
+  #Delete rows that did not contribute to the model fit,
+  #e.g. missing data or not in subset for fit. 
+  m <- fit$x
+  data <- data[match(rownames(m), rownames(data)), ]
+  n <- nrow(data)
+  
+  #Make new subset if supplied
+  arguments <- as.list(match.call())
+  if("subsetnew" %in% names(arguments))
+    subsetnew  <-  as.numeric(eval(expr=arguments$subsetnew, envir=data))
+  else
+    subsetnew  <- rep(1, n)
+  
+  ncluster <- length(unique(data[, clusterid]))
+  
+  #Assign values to x and reference if not supplied.
+  #Make sure x is a factor if data[, X] is a factor
+  #with the same levels as data[, X].
+  if(missing(x)){
+    if(is.factor(data[, X]))
+      x <- as.factor(levels(data[, X]))
+    if(is.numeric(data[, X]))
+      if(is.binary(data[, X]))
+        x <- c(0, 1)
+      else
+        x <- round(mean(data[, X], na.rm=TRUE), 2)
+  }
+  else{
+    if(is.factor(x)){
+      temp <- x
+      levels(x) <- levels(data[, X])
+      x[1:length(x)] <- temp
+    }
+    else{
+      if(is.factor(data[, X])){
+        x <- factor(x)
+        temp <- x
+        levels(x) <- levels(data[, X])
+        x[1:length(x)] <- temp
+      }
+    }
+  }
+
+  nX <- length(x)
+  out <- c(out, list(x=x))
+  
+  #Check if model.matrix works with object=formula. If formula contains splines,
+  #then neither object=formula nor object=fit will not work when no variation 
+  #in exposure, since model.matrix needs to retrieve Boundary.knots 
+  #from terms(fit). Then fit glm so can use model.matrix with object=terms(fit.glm). 
+  data.x <- data
+  data.x[, X] <- x[min(which(!is.na(x)))]
+  m.x <- try(expr=model.matrix(object=formula, data=data.x), silent=TRUE)
+  contains.splines <- FALSE
+  if(!is.matrix(m.x)){
+    contains.splines <- TRUE
+    environment(formula) <- new.env()
+    fit.glm <- glm(formula=formula, data=data) 
+  }
+  
+  #---ESTIMATES OF INTERCEPTS---
+  
+  h <- as.vector(fit$x%*%matrix(fit$coef, nrow=npar, ncol=1)) 
+  dh.dbeta <- fit$x
+  if(link=="identity"){
+    r <- fit$y-h
+    a <- ave(x=r, data[, clusterid], FUN=mean)
+  }
+  if(link=="log"){
+    r <- fit$y*exp(-h)
+    a <- log(ave(x=r, data[, clusterid], FUN=mean))
+  }
+  
+  #---ESTIMATES OF MEANS AT VALUES SPECIFIED BY x ---
+ 
+  pred <- matrix(nrow=n, ncol=nX)
+  SI.beta <- matrix(nrow=nX, ncol=npar)
+  for(i in 1:nX){
+    data.x <- data
+    if(!is.na(x[i]))
+      data.x[, X] <- x[i]
+    if(contains.splines){
+      m.x <- model.matrix(object=terms(fit.glm), data=data.x)[, -1, drop=FALSE] 
+    }
+    else{
+      m.x <- model.matrix(object=formula, data=data.x)[, -1, drop=FALSE]  
+    }
+    h.x <- as.vector(m.x%*%matrix(fit$coef, nrow=npar, ncol=1))
+    dh.x.dbeta <- m.x
+    eta <- a+h.x
+    if(link=="identity"){      
+      mu <- eta  
+      dmu.deta <- rep(1, n) 
+      da.dbeta <- -apply(X=dh.dbeta, MARGIN=2, FUN=ave, data[, clusterid])
+    }
+    if(link=="log"){
+      mu <- exp(eta)    
+      dmu.deta <- mu
+      da.dbeta <- -apply(X=r*dh.dbeta, MARGIN=2, FUN=ave, data[, clusterid])/
+        exp(a)
+    }   
+    pred[, i] <- mu
+    deta.dbeta <- da.dbeta+dh.x.dbeta
+    #When link=="log", exp(a) will be 0 if y=0 for all subjects in the cluster.
+    #This causes da.dbeta and deta.dbeta to be NA, but they should be 0.  
+    deta.dbeta[is.na(deta.dbeta)] <- 0 
+    dmu.dbeta <- dmu.deta*deta.dbeta
+    SI.beta[i, ] <- colMeans(subsetnew*weights*dmu.dbeta)
+  }
+  est <- colSums(subsetnew*weights*pred, na.rm=TRUE)/
+    sum(subsetnew*weights)
+   
+  #---VARIANCE OF MEANS AT VALUES SPECIFIED BY x---
+  
+  ores <- weights*fit$x*fit$res
+  mres <- subsetnew*weights*(pred-matrix(rep(est, each=n), nrow=n, ncol=nX))
+  res <- cbind(mres, ores)
+  res <- aggr(x=res, clusters=data[, clusterid])
+  J <- var(res, na.rm=TRUE)
+  
+  SI <- cbind(-diag(nX)*mean(subsetnew*weights), SI.beta)
+  oI <- cbind(matrix(0, nrow=npar, ncol=nX), 
+    -t(fit$x)%*%(weights*fit$d.res)/n)   
+  I <- rbind(SI, oI)
+  V <- (solve(I)%*%J%*%t(solve(I))*ncluster/n^2)[1:nX, 1:nX]
+  vcov <- V
+   
+  out <- c(out, list(est=est, vcov=vcov))
+
+  #---OUTPUT---
+
+  class(out) <- "stdGee"
+  return(out)
+
+}
+
+summary.stdGee <- function(object, CI.type="plain", CI.level=0.95,
+  transform=NULL, contrast=NULL, reference=NULL, ...){
+
+  est <- object$est
+  V <- as.matrix(object$vcov)
+  nX <- length(object$x)
+
+  if(!is.null(transform)){
+    if(transform=="log"){
+      dtransform.dm <- diag(1/est, nrow=nX, ncol=nX)
+      est <- log(est)
+    }
+    if(transform=="logit"){
+      dtransform.dm <- diag(1/(est*(1-est)), nrow=nX, ncol=nX)
+      est <- logit(est)
+    }
+    if(transform=="odds"){
+      dtransform.dm <- diag(1/(1-est)^2, nrow=nX, ncol=nX)
+      est <- odds(est)
+    }
+    V <- t(dtransform.dm)%*%V%*%dtransform.dm
+  }
+
+  if(!is.null(contrast)){
+    referencepos <- match(reference, object$x)
+    if(contrast=="difference"){
+      dcontrast.dtransform <- diag(nX)
+      dcontrast.dtransform[referencepos, ] <- -1
+      dcontrast.dtransform[referencepos, referencepos] <- 0
+      est <- est-est[referencepos]
+    }
+    if(contrast=="ratio"){
+      dcontrast.dtransform <- diag(1/est[referencepos], nrow=nX, ncol=nX)
+      dcontrast.dtransform[referencepos, ] <- -est/est[referencepos]^2
+      dcontrast.dtransform[referencepos, referencepos] <- 1
+      est <- est/est[referencepos]
+    }
+    V <- t(dcontrast.dtransform)%*%V%*%dcontrast.dtransform
+    V[referencepos, ] <- 0
+    V[, referencepos] <- 0
+  }
+
+  var <- diag(V)
+  se <-  sqrt(var)
+  conf.int <- CI(est=est, var=var, CI.type=CI.type, CI.level=CI.level)
+  
+  if(is.factor(reference))
+    reference <- as.character(reference)
+  est.table <- as.matrix(cbind(est, se, conf.int), nrow=length(est), ncol=4)
+  dimnames(est.table) <- list(object$x,
+    c("Estimate", "Std. Error", paste("lower",CI.level), 
+    paste("upper",CI.level)))
+  out <- c(object, list(est.table=est.table,transform=transform,
+    contrast=contrast,reference=reference))
+    
+  class(out) <- "summary.stdGee"
+  return(out)
+
+}
+
+print.summary.stdGee <- function(x, ...){
+
+  cat("\nFormula: ")
+  ff <- x$fit$call["formula"]
+  if(class(formula(ff))=="formula"){
+    formula <- formula(ff)
+  }
+  else{
+    formula <- get(as.character(ff))  
+  }
+  print(formula, showEnv=FALSE)
+  cat("Link function:",  summary(x$fit)$link,  "\n")
+  cat("Exposure: ", x$X,  "\n")
+  if(!is.null(x$transform))
+    cat("Transform: ", x$transform,  "\n")
+  if(!is.null(x$contrast)){
+    cat("Reference level: ", x$X, "=", x$reference,  "\n")
+    cat("Contrast: ", x$contrast,  "\n")
+  }
+  cat("\n")
+  print(x$est.table, digits=3)
+
+}
+
+plot.stdGee <- plot.stdGlm
+ 
+
 stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
 
   #---PREPARATION---
@@ -360,20 +632,22 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
   fit.detail <- coxph.detail(object=fit)
   out <- list(fit=fit, X=X)
  
-  #delete rows that did not contribute to the model fit,
-  #e.g. missing data or not in subset for fit 
+  #Delete rows that did not contribute to the model fit,
+  #e.g. missing data or not in subset for fit.
+  #Need to have object=fit in model.matrix, since neither object=formula nor
+  #object=terms(fit) will remove rows not in subset. 
   m <- model.matrix(object=fit)
   data <- data[match(rownames(m), rownames(data)), ]
   n <- nrow(data)
   
-  #make new subset if supplied
+  #Make new subset if supplied.
   arguments <- as.list(match.call())
   if("subsetnew" %in% names(arguments))
     subsetnew  <- as.numeric(eval(expr=arguments$subsetnew, envir=data))
   else
     subsetnew <- rep(1, n)
 
-  #extract end variable and event variable
+  #Extract end variable and event variable.
   Y <- model.extract(frame=model.frame(formula=formula, data=data), 
     component="response")
   if(ncol(Y)==2){
@@ -394,13 +668,13 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
   #if(missing(clusters)) clusters <- 1:nrow(data)
   #but a problem when constructing meat in sandwich formula:
   #must always aggregate, which is a bit slow, even though much faster
-  #when using data.table than the aggregate function
+  #when using data.table than the aggregate function.
   if(!missing(clusterid))
-    n.cluster <- length(unique(data[, clusterid]))
+    ncluster <- length(unique(data[, clusterid]))
   
-  #assign values to x and reference if not supplied
-  #make sure x is a factor if data[, X] is a factor
-  #with the same levels as data[, X]
+  #Assign values to x and reference if not supplied.
+  #Make sure x is a factor if data[, X] is a factor
+  #with the same levels as data[, X].
   if(missing(x)){
     if(is.factor(data[, X]))
       x <- as.factor(levels(data[, X]))
@@ -429,15 +703,15 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
   nX <- length(x)    
   out <- c(out, list(x=x))
   
-  #sort on "end-variable"
+  #Sort on "end-variable".
   ord <- order(end)
   data <- data[ord, ]
   weights <- weights[ord]
   subsetnew <- subsetnew[ord]
   end <- end[ord]
   event <- event[ord]
-
-  #assign value to t if missing
+  
+  #Assign value to t if missing.
   if(missing(t))
     t <- fit.detail$time
   out <- c(out, list(t=t))
@@ -446,7 +720,7 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
   if(sum(fit.detail$time<=min(t))==0)
     stop("No events before first value in t", call.=FALSE)
 
-  #collect important stuff from copxh.detail
+  #Collect important stuff from copxh.detail.
   est <- matrix(nrow=nt, ncol=nX)
   vcov <- vector(mode="list", length=nt)
   dH0 <- fit.detail$hazard
@@ -481,14 +755,17 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
     PredX <- matrix(nrow=n, ncol=nX)
     tempmat <- matrix(nrow=nX, ncol=npar)
     for(i in 1:nX){
-      data.temp <- data
+      data.x <- data
       if(!is.na(x[i]))
-        data.temp[, X] <- x[i]
-      predX <- predict(object=fit, newdata=data.temp, type="risk")
+        data.x[, X] <- x[i]
+      predX <- predict(object=fit, newdata=data.x, type="risk")
       si[, i] <- exp(-H0step(t[j])*predX)
       PredX[, i] <- predX
-      tempmat[i, ] <- colMeans(model.matrix(object=formula, 
-        data=data.temp)[, -1, drop=FALSE]*predX*si[, i]*
+      #Need terms(fit) here. If formula contains splines,
+      #then fit or formula will not work when no variation in the exposure, 
+      #since model.matrix need to retrieve Boundary.knots from terms(fit).
+      tempmat[i, ] <- colMeans(model.matrix(object=terms(fit), 
+        data=data.x)[, -1, drop=FALSE]*predX*si[, i]*
         subsetnew*weights)
     }
     est[j, ] <- colSums(subsetnew*weights*si, na.rm=TRUE)/
@@ -505,16 +782,17 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
     J <- var(res, na.rm=TRUE)
     SI <- cbind(-diag(nX)*mean(subsetnew*weights), -tempmat*H0step(t[j]),
       -colMeans(PredX*si*subsetnew*weights))
-    #Note: this is why the user cannot use term cluster; then -solve(vcov(object=fit))/n
-    #will not be the bread in the sandwich
+    #This is why the user cannot use term cluster; then -solve(vcov(object=fit))/n
+    #will not be the bread in the sandwich.
     betaI <- cbind(matrix(0, nrow=npar, ncol=nX), -solve(vcov(object=fit))/n,
       rep(0, npar))
     H0I <- c(rep(0, nX), -colMeans(E*H0it, na.rm=TRUE), -1)
     I <- rbind(SI, betaI, H0I) 
+    
     if(missing(clusterid))
       V <- (solve(I)%*%J%*%t(solve(I))/n)[1:nX, 1:nX]
     else
-      V <- (solve(I)%*%J%*%t(solve(I))*n.cluster/n^2)[1:nX, 1:nX]
+      V <- (solve(I)%*%J%*%t(solve(I))*ncluster/n^2)[1:nX, 1:nX]
     vcov[[j]] <- V
     
     }
@@ -614,7 +892,7 @@ print.summary.stdCoxph <- function(x, ...){
   for(j in 1:nt){
 
     cat("\nFormula: ")
-    print(x$fit$formula)
+    print(x$fit$formula, showEnv=FALSE)
     cat("Exposure: ", x$X, "\n")
 
     if(!is.null(x$transform))
@@ -1131,7 +1409,7 @@ stdParfrailty <- function(fit, data, X, x, t, clusterid, subsetnew){
   }
 
   clusters <- data[, clusterid]
-  n.cluster <- length(unique(clusters))
+  ncluster <- length(unique(clusters))
   
   #assign values to x and reference if not supplied
   #make sure x is a factor if data[, X] is a factor,
@@ -1202,21 +1480,21 @@ stdParfrailty <- function(fit, data, X, x, t, clusterid, subsetnew){
     SI.logphi <- vector(length=nX)
     SI.beta <- matrix(nrow=nX, ncol=npar-3)
     for(i in 1:nX){
-      data.temp <- data
+      data.x <- data
       if(!is.na(x[i]))
-        data.temp[, X] <- x[i]
-      m <- model.matrix(object=formula, data=data.temp)[, -1, drop=FALSE]
+        data.x[, X] <- x[i]
+      m <- model.matrix(object=formula, data=data.x)[, -1, drop=FALSE]
       predX <- colSums(beta*t(m))
       temp <- 1+phi*H0t*exp(predX)
       si[, i] <- temp^(-1/phi)
       SI.logalpha[i] <- mean(subsetnew*H0t*eta*exp(predX)/temp^(1/phi+1))*n/
-        n.cluster
+        ncluster
       SI.logeta[i] <- mean(subsetnew*(-H0t)*exp(predX)*log(t[j]/alpha)*eta/
-        temp^(1/phi+1))*n/n.cluster
+        temp^(1/phi+1))*n/ncluster
       SI.logphi[i] <- mean(subsetnew*log(temp)/(phi*temp^(1/phi))-
-        H0t*exp(predX)/temp^(1/phi+1))*n/n.cluster
+        H0t*exp(predX)/temp^(1/phi+1))*n/ncluster
       SI.beta[i, ] <- colMeans(subsetnew*(-H0t)*exp(predX)*m/temp^(1/phi+1))*
-        n/n.cluster
+        n/ncluster
     }
     est[j, ] <- colSums(subsetnew*si, na.rm=TRUE)/sum(subsetnew)
    
@@ -1229,14 +1507,14 @@ stdParfrailty <- function(fit, data, X, x, t, clusterid, subsetnew){
 
     J <- var(res, na.rm=TRUE)
 
-    #Note: the term n/n.cluster is because SI.logalpha, SI.logeta, SI.logphi,
+    #Note: the term n/ncluster is because SI.logalpha, SI.logeta, SI.logphi,
     #and SI.beta are clustered, which they are not in stdCoxph
-    SI <- cbind(-diag(nX)*mean(subsetnew)*n/n.cluster, SI.logalpha, SI.logeta, 
+    SI <- cbind(-diag(nX)*mean(subsetnew)*n/ncluster, SI.logalpha, SI.logeta, 
       SI.logphi, SI.beta)
 
-    betaI <- cbind(matrix(0, nrow=npar, ncol=nX), -solve(fit$vcov)/n.cluster)
+    betaI <- cbind(matrix(0, nrow=npar, ncol=nX), -solve(fit$vcov)/ncluster)
     I <- rbind(SI, betaI)
-    V <- (solve(I)%*%J%*%t(solve(I))/n.cluster)[1:nX, 1:nX]
+    V <- (solve(I)%*%J%*%t(solve(I))/ncluster)[1:nX, 1:nX]
     vcov[[j]] <- V
 
     }

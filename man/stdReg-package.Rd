@@ -33,7 +33,7 @@ Chang I.M., Gelman G., Pagano M. (1982). Corrected group prognostic curves
 and summary statistics. \emph{Journal of Chronic Diseases} \bold{35}, 669-674.
 
 Gail M.H. and Byar D.P. (1986). Variance calculations for direct adjusted survival
-curves, with applications to testing for no treatement effect. \emph{Biometrical Journal}
+curves, with applications to testing for no treatment effect. \emph{Biometrical Journal}
 \bold{28}(5), 587-599. 
 
 }

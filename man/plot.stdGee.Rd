@@ -1,27 +1,27 @@
-\name{summary.stdGee}
+\name{plot.stdGee}
 
-\alias{summary.stdGee}
+\alias{plot.stdGee}
 
 \title{
-Summarizes GEE regression standardization fit
+Plots GEE regression standardization fit
 }
 
 \description{
-This is a \code{summary} method for class \code{"stdGee"}.
+This is a \code{plot} method for class \code{"stdGee"}.
 }
 
 \usage{
-\method{summary}{stdGee}(object, CI.type = "plain", CI.level = 0.95,
+\method{plot}{stdGee}(x, CI.type = "plain", CI.level = 0.95,
   transform = NULL, contrast = NULL, reference = NULL, ...)
 }
 
 \arguments{
-  \item{object}{
+  \item{x}{
 an object of class \code{"stdGee"}.
-} 
+}
  \item{CI.type}{
 string, indicating the type of confidence intervals. Either "plain", which
-gives untransformed intervals, or "log", which gives log-transformed intervals.
+gives untransformed intervals, or "log", which gives log-transformed intervals. 
 }
   \item{CI.level}{
 desired coverage probability of confidence intervals, on decimal form. 
@@ -41,8 +41,8 @@ level specified by the \code{reference} argument.
   \item{reference}{
 must be specified if \code{contrast} is specified. 
 }
- \item{\dots}{
-not used.
+  \item{\dots}{
+further arguments passed on to plot.default. 
 }
 }
 
