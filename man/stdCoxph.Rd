@@ -24,7 +24,7 @@ stdCoxph(fit, data, X, x, t, clusterid, subsetnew)
 \arguments{
   \item{fit}{
 an object of class \code{"coxph"}, as returned by the \code{coxph} function 
-  in the \code{survival} package, but without special terms \code{strata}, \code{cluster} or \code{tt}. 
+  in the \pkg{survival} package, but without special terms \code{strata}, \code{cluster} or \code{tt}. 
   Only \code{breslow} method for handling ties is allowed. If arguments 
   \code{weights} and/or \code{subset} are used when fitting the model, 
   then the same weights and subset are used in \code{stdGlm}.  

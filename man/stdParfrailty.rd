@@ -24,7 +24,7 @@ stdParfrailty(fit, data, X, x, t, clusterid, subsetnew)
 \arguments{
   \item{fit}{
 an object of class \code{"parfrailty"}, as returned by the \code{parfrailty} function 
-  in the \code{stdReg} package..  
+  in the \pkg{stdReg} package..  
 }
   \item{data}{
 a data frame containing the variables in the model. This should be the same 
@@ -133,6 +133,8 @@ and thus effectively conditions on \eqn{\bar{Z}}.
 
 \examples{
 
+\dontrun{
+
 require(survival)
 
 #simulate data
@@ -165,5 +167,7 @@ fit <- parfrailty(formula=Surv(L, T, D)~X, data=dd, clusterid="id")
 fit.std <- stdParfrailty(fit=fit, data=dd, X="X", x=seq(-1,1,0.5), t=1:5, clusterid="id")
 print(summary(fit.std, t=3))
 plot(fit.std)
+
+}
 
 }

@@ -23,7 +23,7 @@ stdGlm(fit, data, X, x, clusterid, case.control = FALSE, subsetnew)
 \arguments{
   \item{fit}{
 an object of class \code{"glm"}, as returned by the \code{glm} function 
-  in the \code{stats} package. If arguments \code{weights} and/or \code{subset}
+  in the \pkg{stats} package. If arguments \code{weights} and/or \code{subset}
   are used when fitting the model, then the same weights and subset are used 
   in \code{stdGlm}.  
 } 

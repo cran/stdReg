@@ -19,7 +19,7 @@ parfrailty(formula, data, clusterid, init)
 \arguments{
   \item{formula}{
 an object of class "\code{formula}", on the same format as accepted by the 
-\code{coxph} function in the \code{survival} package.  
+\code{coxph} function in the \pkg{survival} package.  
 }  
   \item{data}{
 a data frame containing the variables in the model. 
@@ -85,6 +85,7 @@ subject-specific truncation times, then the whole cluster is observed
 
 \examples{
 
+\dontrun{
 require(survival)
 
 #simulate data
@@ -115,5 +116,7 @@ dd <- dd[incl, ]
  
 fit <- parfrailty(formula=Surv(L, T, D)~X, data=dd, clusterid="id")
 print(summary(fit))
+
+}
 
 }

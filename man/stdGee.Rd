@@ -25,7 +25,7 @@ stdGee(fit, data, X, x, clusterid, subsetnew)
 \arguments{
   \item{fit}{
 an object of class \code{"gee"}, with argument \code{cond = TRUE}, as returned 
-by the \code{gee} function in the \code{drgee} package. If arguments 
+by the \code{gee} function in the \pkg{drgee} package. If arguments 
 \code{weights} and/or \code{subset} are used when fitting the model, then the 
 same weights and subset are used in \code{stdGee}.  
 } 
