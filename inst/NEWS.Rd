@@ -1,7 +1,7 @@
 \name{NEWS}
 \encoding{UTF-8}
 \title{News for Package \pkg{stdReg}}
-\section{Changes in version 3.1.0 (20YY-MM-DD)}{
+\section{Changes in version 3.2.0 (20YY-MM-DD)}{
   \subsection{New features}{
     \itemize{
       \item

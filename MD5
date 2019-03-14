@@ -1,8 +1,8 @@
-fe28e71fe86cb8da8beeeacbaa68b276 *DESCRIPTION
+6d5fef987839c14eb1707556eea40c41 *DESCRIPTION
 78ba28558bb38c7d2c7ff4323ed9ea61 *NAMESPACE
 0dfecfad852222260f54c47870c0a450 *R/sourcecode.R
-a50f4df39c053c0494a476a3f38b3449 *build/partial.rdb
-11adce8ac5a58603b7c5fb24bd8d4847 *inst/NEWS.Rd
+1e1313b0211d1ed2381b89c228ca0ebd *build/partial.rdb
+be8afff1c090625e24a83b078dcb2c65 *inst/NEWS.Rd
 87b9df5da549a6893d1fabcfe30e75fb *inst/doc/code.R
 c5f899a5efd513e342d66559fbf9ba35 *man/confint.stdCoxph.Rd
 b69f0a2925b6bd9955541eb4a4009581 *man/confint.stdGee.Rd
@@ -18,9 +18,9 @@ ec65921a0e92cb5ffaa9dc46be025a57 *man/plot.stdParfrailty.rd
 ad331fad83ee6e3e991b2e997a233713 *man/print.summary.stdGee.Rd
 b09eac0c285259947dc40e477863de24 *man/print.summary.stdGlm.Rd
 8a63841000a4d85cdd123ce0a006e3da *man/print.summary.stdParfrailty.rd
-8067ca555df083a2275d11e194a92338 *man/stdCoxph.Rd
+cabc6e7ab3b4963fcd37c4cf58e7f099 *man/stdCoxph.Rd
 a0687a45cc59cf1cb24264d1c5cbdd07 *man/stdGee.Rd
-f965d9431fa9e424664891f5e95e0353 *man/stdGlm.Rd
+8a0793559af1b464410d2c1ad435b1b4 *man/stdGlm.Rd
 6b350e76dcbac44e429bad19b9e9a6ee *man/stdParfrailty.rd
 46e6350a05e259ea6b586ec1031abcc0 *man/stdReg-package.Rd
 61fef38b4405a8ae2b82d2478d3e5a68 *man/summary.parfrailty.rd

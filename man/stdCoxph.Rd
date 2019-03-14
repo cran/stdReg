@@ -99,6 +99,13 @@ and summary statistics. \emph{Journal of Chronic Diseases} \bold{35}, 669-674.
 Gail M.H. and Byar D.P. (1986). Variance calculations for direct adjusted survival
 curves, with applications to testing for no treatment effect. \emph{Biometrical Journal}
 \bold{28}(5), 587-599. 
+
+Sjolander A. (2016). Regression standardization with the R-package stdReg.
+\emph{European Journal of Epidemiology} \bold{31}(6), 563-574.
+
+Sjolander A. (2016). Estimation of causal effect measures with the R-package stdReg.
+\emph{European Journal of Epidemiology} \bold{33}(9), 847-858.
+
 }
 
 \author{
