@@ -1,8 +1,8 @@
 Package: stdReg
 Type: Package
 Title: Regression Standardization
-Version: 3.2.0
-Date: 2019-03-13
+Version: 3.3.0
+Date: 2019-03-15
 Author: Arvid Sjolander and Elisabeth Dahlqwist
 Maintainer: Arvid Sjolander <arvid.sjolander@ki.se>
 Description: Contains functionality for regression standardization. 
@@ -12,7 +12,7 @@ Description: Contains functionality for regression standardization.
 License: LGPL (>= 3)
 Imports: graphics, stats, survival, data.table, numDeriv, drgee
 NeedsCompilation: no
-Packaged: 2019-03-13 07:33:55 UTC; arvsjo
+Packaged: 2019-03-15 14:04:03 UTC; arvsjo
 RoxygenNote: 6.0.1
 Repository: CRAN
-Date/Publication: 2019-03-14 14:00:03 UTC
+Date/Publication: 2019-03-15 17:50:03 UTC

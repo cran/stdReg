@@ -1,8 +1,8 @@
-6d5fef987839c14eb1707556eea40c41 *DESCRIPTION
+e96a43a027b5e12acf4844ab1b4924fc *DESCRIPTION
 78ba28558bb38c7d2c7ff4323ed9ea61 *NAMESPACE
 0dfecfad852222260f54c47870c0a450 *R/sourcecode.R
-1e1313b0211d1ed2381b89c228ca0ebd *build/partial.rdb
-be8afff1c090625e24a83b078dcb2c65 *inst/NEWS.Rd
+d1d874bd6089d3d92a81364560358461 *build/partial.rdb
+4548eb42c755c455f8bd65df22d42e0d *inst/NEWS.Rd
 87b9df5da549a6893d1fabcfe30e75fb *inst/doc/code.R
 c5f899a5efd513e342d66559fbf9ba35 *man/confint.stdCoxph.Rd
 b69f0a2925b6bd9955541eb4a4009581 *man/confint.stdGee.Rd
