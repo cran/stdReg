@@ -77,6 +77,12 @@ The variance for \eqn{\hat{\theta}(t,x)} is obtained by the sandwich formula.
 
 \value{
 An object of class \code{"stdCoxph"} is a list containing 
+\item{call}{
+  the matched call. 
+  }
+\item{input}{
+  \code{input} is a list containing all input arguments.     
+  }
 \item{est}{
   a matrix with \code{length(t)} rows and \code{length(x)} columns, where the element 
   on row \code{i} and column \code{j} is equal to \eqn{\hat{\theta}}(\code{t[i],x[j]}). 
@@ -90,8 +96,6 @@ An object of class \code{"stdCoxph"} is a list containing
 }
 
 \references{
-Makuch R.W. (1982). Adjusted survival curve estimation using covariates.
-\emph{Journal of Chronic Diseases} \bold{35}, 437-443.
 
 Chang I.M., Gelman G., Pagano M. (1982). Corrected group prognostic curves
 and summary statistics. \emph{Journal of Chronic Diseases} \bold{35}, 669-674.
@@ -99,6 +103,9 @@ and summary statistics. \emph{Journal of Chronic Diseases} \bold{35}, 669-674.
 Gail M.H. and Byar D.P. (1986). Variance calculations for direct adjusted survival
 curves, with applications to testing for no treatment effect. \emph{Biometrical Journal}
 \bold{28}(5), 587-599. 
+
+Makuch R.W. (1982). Adjusted survival curve estimation using covariates.
+\emph{Journal of Chronic Diseases} \bold{35}, 437-443.
 
 Sjolander A. (2016). Regression standardization with the R-package stdReg.
 \emph{European Journal of Epidemiology} \bold{31}(6), 563-574.

@@ -64,8 +64,8 @@ expand <- function(x, names){
   return(x)  
 } 
 
-Hfun <- function(fit, data){
-  if(class(fit)[1]=="survfit"){
+Hfun <- function(fit, data, fit.detail){
+  if(inherits(x=fit, what="survfit")){
     #need to use summary(fit), since n.events and n.risk from fit 
     #behave strange when there is left truncation     
     ss <- summary(fit)
@@ -87,8 +87,7 @@ Hfun <- function(fit, data){
     }
     names(H) <- names.strata
   }
-  if(class(fit)[1]=="coxph"){  
-    fit.detail <- coxph.detail(fit)
+  if(inherits(x=fit, what="coxph")){  
     time <- fit.detail$time
     #dH is weighted
     dH <- fit.detail$hazard
@@ -383,14 +382,22 @@ parfrailty <- function(formula, data, clusterid, init){
   fit <- optim(par=init, fn=like, gr=gradientfunc, method="BFGS", hessian=FALSE, 
     control=list(fnscale=-1))
   est <- fit$par
+  names(est) <- c("log(\U003B1)", "log(\U003B7)", "log(\U003D5)", 
+    colnames(X))
   
   #calculate score contributions
   score <- scorefunc(par=est)
+  colnames(score) <- c("log(\U003B1)", "log(\U003B7)", "log(\U003D5)", 
+    colnames(X))
  
   #calculate hessian
   hessian <- hessianfunc(par=est)
+  rownames(hessian) <- c("log(\U003B1)", "log(\U003B7)", "log(\U003D5)", 
+    colnames(X))
+  colnames(hessian) <- c("log(\U003B1)", "log(\U003B7)", "log(\U003D5)", 
+    colnames(X))
   
-  output <- c(list(formula=formula, clusterid=clusterid,
+  output <- c(list(formula=formula, data=data, clusterid=clusterid,
      ncluster=ncluster, n=n, X=X, fit=fit, est=est, 
      score=score, vcov=-solve(hessian), call=call))
 
@@ -402,11 +409,11 @@ plot.stdCoxph <- function(x, plot.CI=TRUE, CI.type="plain", CI.level=0.95,
   transform=NULL, contrast=NULL, reference=NULL, legendpos="bottomleft", ...){
 
   object <- x
-  x <- object$x
+  x <- object$input$x
 
   dots <- list(...)
 
-  xlab <- "t"
+  xlab <- "t"  
 
   if(is.factor(reference))
     reference <- as.character(reference)
@@ -457,9 +464,9 @@ plot.stdCoxph <- function(x, plot.CI=TRUE, CI.type="plain", CI.level=0.95,
             "}]", sep="")), expression())
       }
     }
-  }
+  } 
 
-  t <- object$t
+  t <- object$input$t
   nt <- length(t)
   nX <- length(x)
 
@@ -474,7 +481,7 @@ plot.stdCoxph <- function(x, plot.CI=TRUE, CI.type="plain", CI.level=0.95,
     ylim <- c(min(lower), max(upper))
   else
     ylim <- c(min(est), max(est))
-  args <- list(x=object$t, y=rep(0, length(t)), xlab=xlab, ylab=ylab,
+  args <- list(x=object$input$t, y=rep(0, length(t)), xlab=xlab, ylab=ylab,
     ylim=ylim, type="n")
   args[names(dots)] <- dots
   do.call("plot", args=args)
@@ -486,7 +493,7 @@ plot.stdCoxph <- function(x, plot.CI=TRUE, CI.type="plain", CI.level=0.95,
       lines(t, lower[, i], lty="dashed", col=i)
     }
     temp <- as.character(x[i]) 
-    legend <- c(legend, paste(object$X, "=", object$x[i])) 
+    legend <- c(legend, paste(object$input$X, "=", object$input$x[i])) 
   }
   if(is.na(match("ylim",names(args))))
     yl <- ylim[2]
@@ -503,11 +510,11 @@ plot.stdGlm <- function(x, CI.type="plain", CI.level=0.95,
   transform=NULL, contrast=NULL, reference=NULL, ...){
 
   object <- x
-  x <- object$x
+  x <- object$input$x
 
   dots <- list(...)
 
-  xlab <- object$X
+  xlab <- object$input$X
   
   if(is.factor(reference))
     reference <- as.character(reference)
@@ -598,8 +605,7 @@ print.parfrailty <- function(x, ...){
   cat("\nEstimated parameters in the Gamma-Weibull frailty model", "\n")
   cat("\n")
   table.est <- as.matrix(cbind(x$est, sqrt(diag(x$vcov))))
-  rownames(table.est) <- c("log(\U003B1)", "log(\U003B7)", "log(\U003D5)", 
-    names(as.data.frame(x$X)))
+  rownames(table.est) <- names(x$est)
   colnames(table.est) <- c("coef", "se(coef)")
   print.default(table.est)
   cat("\n")
@@ -619,8 +625,7 @@ print.summary.parfrailty <- function(x, digits=max(3L, getOption("digits")-3L),
   cat("\nEstimated parameters in the Gamma-Weibull frailty model", "\n")
   cat("\n")
   table.est <- cbind(x$est, exp(x$est), x$se, x$zvalue, x$pvalue)
-  rownames(table.est) <- c("log(\U003B1)", "log(\U003B7)", "log(\U003D5)", 
-    names(as.data.frame(x$X)))
+  rownames(table.est) <- names(x$est)
   colnames(table.est) <- c("coef", "exp(coef)", "se(coef)", "z", "Pr(>|z|)")
   #print.default(table.est, digits=3)
   printCoefmat(table.est, digits=3)
@@ -637,13 +642,13 @@ print.summary.stdCoxph <- function(x, ...){
   for(j in 1:nt){
 
     cat("\nFormula: ")
-    print(x$fit$formula, showEnv=FALSE)
-    cat("Exposure: ", x$X, "\n")
+    print(x$input$fit$formula, showEnv=FALSE)
+    cat("Exposure: ", x$input$X, "\n")
 
     if(!is.null(x$transform))
       cat("Transform: ", x$transform,  "\n")
     if(!is.null(x$contrast)){
-      cat("Reference level: ", x$X, "=", x$reference,  "\n")
+      cat("Reference level: ", x$input$X, "=", x$reference,  "\n")
       cat("Contrast: ", x$contrast,  "\n")
     }
     cat("Survival functions evaluated at t =", x$tsum[j], "\n")
@@ -660,20 +665,13 @@ print.summary.stdParfrailty <- print.summary.stdCoxph
 print.summary.stdGee <- function(x, ...){
 
   cat("\nFormula: ")
-  ff <- x$fit$call["formula"]
-  if(class(formula(ff))=="formula"){
-    formula <- formula(ff)
-  }
-  else{
-    formula <- get(as.character(ff))  
-  }
-  print(formula, showEnv=FALSE)
-  cat("Link function:",  summary(x$fit)$link,  "\n")
-  cat("Exposure: ", x$X,  "\n")
+  print(x$input$fit$formula)
+  cat("Link function:",  summary(x$input$fit)$link,  "\n")
+  cat("Exposure: ", x$input$X,  "\n")
   if(!is.null(x$transform))
     cat("Transform: ", x$transform,  "\n")
   if(!is.null(x$contrast)){
-    cat("Reference level: ", x$X, "=", x$reference,  "\n")
+    cat("Reference level: ", x$input$X, "=", x$reference,  "\n")
     cat("Contrast: ", x$contrast,  "\n")
   }
   cat("\n")
@@ -684,14 +682,14 @@ print.summary.stdGee <- function(x, ...){
 print.summary.stdGlm <- function(x, ...){
 
   cat("\nFormula: ")
-  print(x$fit$formula)
-  cat("Family:",  x$fit$family$family,  "\n")
-  cat("Link function:",  x$fit$family$link,  "\n")
-  cat("Exposure: ", x$X,  "\n")
+  print(x$input$fit$formula)
+  cat("Family:",  x$input$fit$family$family,  "\n")
+  cat("Link function:",  x$input$fit$family$link,  "\n")
+  cat("Exposure: ", x$input$X,  "\n")
   if(!is.null(x$transform))
     cat("Transform: ", x$transform,  "\n")
   if(!is.null(x$contrast)){
-    cat("Reference level: ", x$X, "=", x$reference,  "\n")
+    cat("Reference level: ", x$input$X, "=", x$reference,  "\n")
     cat("Contrast: ", x$contrast,  "\n")
   }
   cat("\n")
@@ -699,13 +697,13 @@ print.summary.stdGlm <- function(x, ...){
 
 }
 
-sandwich <- function(fit, data, weights, t){
+sandwich <- function(fit, data, weights, t, fit.detail){
 
   n <- nrow(data)
   if(missing(weights))
     weights <- rep(1, n)
   
-  if(class(fit)[1]=="glm"){
+  if(inherits(x=fit, what="glm")){
     
     #---meat---
     
@@ -720,7 +718,7 @@ sandwich <- function(fit, data, weights, t){
     I <- -solve(summary(fit)$cov.unscaled)/n  
     
   }
-  if(class(fit)[1]=="ah"){
+  if(inherits(x=fit, what="ah")){
   
     #---meat---
     
@@ -732,7 +730,7 @@ sandwich <- function(fit, data, weights, t){
     U <- res
     
   }
-  if(class(fit)[1]=="coxph"){
+  if(inherits(x=fit, what="coxph")){
   
     #---meat for regression coefficients---
     
@@ -761,13 +759,12 @@ sandwich <- function(fit, data, weights, t){
       #---meat and bread for baseline hazard---
     
       #check if left truncation
-      varsLHS <- all.vars(fit$call$formula[[2]]) 
+      varsLHS <- all.vars(fit$formula[[2]]) 
       t2 <- varsLHS[length(varsLHS)-1]
       if(length(varsLHS)==3)
         t1 <- varsLHS[1]  
       else
         t1 <- NULL
-      fit.detail <- coxph.detail(object=fit)
       time <- fit.detail$time
       #nevent is unweighted
       nevent <- fit.detail$nevent
@@ -814,12 +811,16 @@ sandwich <- function(fit, data, weights, t){
     }
       
   }
-  if(class(fit)[1]=="survfit"){ 
+  if(inherits(x=fit, what="survfit")){ 
   
     #---meat---
     
     #check if left truncation
-    varsLHS <- all.vars(fit$call$formula[[2]]) 
+    #survfit object has no formula element, so need to get it from call,
+    #need to use eval, since the fit$call$formula will be literary what the user
+    #gave as argument, e.g. if formula=f, then fit$call$formula is f, not the 
+    #formula contained in f  
+    varsLHS <- all.vars(eval(fit$call$formula)[[2]]) 
     t2 <- varsLHS[length(varsLHS)-1]
     if(length(varsLHS)==3)
       t1 <- varsLHS[1]  
@@ -840,7 +841,11 @@ sandwich <- function(fit, data, weights, t){
     dH <- n.event/n.risk
     names(dH) <- paste(time, strata)
     dHvar <- dH/n.risk
-    vars <- all.vars(fit$call$formula[[3]])
+    #survfit object has no formula element, so need to get it from call,
+    #need to use eval, since the fit$call$formula will be literary what the user
+    #gave as argument, e.g. if formula=f, then fit$call$formula is f, not the 
+    #formula contained in f
+    vars <- all.vars(eval(fit$call$formula)[[3]])
     #note: strata is a function in the survival package
     strata.all <- strata(data[, vars, drop=FALSE]) 
     tmp1 <- matrix(nrow=n, ncol=K) 
@@ -881,7 +886,10 @@ sandwich <- function(fit, data, weights, t){
 
 }
 
-stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
+stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){  
+
+  call <- match.call()
+  input <- as.list(environment())
 
   #---PREPARATION---
   if(!fit$method=="breslow")
@@ -894,7 +902,6 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
   formula <- fit$formula
   npar <- length(fit$coef)
   fit.detail <- coxph.detail(object=fit)
-  out <- list(fit=fit, X=X)
  
   #Delete rows that did not contribute to the model fit,
   #e.g. missing data or not in subset for fit.
@@ -951,14 +958,13 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
       }
     }
   }
-  
+  input$x <- x
   nX <- length(x)    
-  out <- c(out, list(x=x))
   
   #Assign value to t if missing.
   if(missing(t))
     t <- fit.detail$time
-  out <- c(out, list(t=t))
+  input$t <- t
   nt <- length(t)
 
   if(sum(fit.detail$time<=min(t))==0)
@@ -966,8 +972,9 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
 
   est <- matrix(nrow=nt, ncol=nX)
   vcov <- vector(mode="list", length=nt)
-  H <- Hfun(fit=fit, data=data)
-  sandwich.fit <- sandwich(fit=fit, data=data, weights=weights, t=t)
+  H <- Hfun(fit=fit, data=data, fit.detail=fit.detail)
+  sandwich.fit <- sandwich(fit=fit, data=data, weights=weights, t=t, 
+    fit.detail=fit.detail)
   
   #---LOOP OVER nt
 
@@ -1032,7 +1039,7 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
 
   }
   
-  out <- c(out, list(est=est, vcov=vcov))
+  out <- list(call=call, input=input, est=est, vcov=vcov)
   
   #---OUTPUT---
 
@@ -1042,6 +1049,9 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
 }
 
 stdGee <- function(fit, data, X, x, clusterid, subsetnew){
+
+  call <- match.call()
+  input <- as.list(environment())
   
   #---CHECKS---
   
@@ -1053,23 +1063,9 @@ stdGee <- function(fit, data, X, x, clusterid, subsetnew){
   
   #---PREPARATION---
   
-  #The gee object does not contain element formula, so need to fiddle a bit.
-  ff <- fit$call["formula"] 
-  #class(formula(ff)) will be equal to "formula" if the formula is specified 
-  #expclicitly in the call to gee, e.g. fit <- gee(formula=y~x,...)
-  #class(formula(ff)) will be equal to "function" if the formula is specified 
-  #implicitly in the call to gee, e.g. f <- y~x, fit <- gee(formula=f,...).
-  #In the latter case, as.character(ff) is equal to "f", so that
-  #get(as.character(ff)) evaluates to y~x (hopefully). 
-  if(class(formula(ff))=="formula"){
-    formula <- formula(ff)
-  }
-  else{
-    formula <- get(as.character(ff))  
-  }
+  formula <- fit$formula 
   weights <- rep(1, nrow(fit$x)) #gee does not allow for weights
   npar <- length(fit$coef)
-  out <- list(fit=fit, X=X)
   
   #Delete rows that did not contribute to the model fit,
   #e.g. missing data or not in subset for fit. 
@@ -1113,9 +1109,8 @@ stdGee <- function(fit, data, X, x, clusterid, subsetnew){
       }
     }
   }
-
+  input$x <- x
   nX <- length(x)
-  out <- c(out, list(x=x))
   
   #Check if model.matrix works with object=formula. If formula contains splines,
   #then neither object=formula nor object=fit will not work when no variation 
@@ -1182,7 +1177,7 @@ stdGee <- function(fit, data, X, x, clusterid, subsetnew){
   }
   est <- colSums(subsetnew*weights*pred, na.rm=TRUE)/
     sum(subsetnew*weights)
-   
+  
   #---VARIANCE OF MEANS AT VALUES SPECIFIED BY x---
   
   ores <- weights*fit$x*fit$res
@@ -1190,7 +1185,7 @@ stdGee <- function(fit, data, X, x, clusterid, subsetnew){
   res <- cbind(mres, ores)
   res <- aggr(x=res, clusters=data[, clusterid])
   J <- var(res, na.rm=TRUE)
-  
+ 
   SI <- cbind(-diag(nX)*mean(subsetnew*weights), SI.beta)
   oI <- cbind(matrix(0, nrow=npar, ncol=nX), 
     -t(fit$x)%*%(weights*fit$d.res)/n)   
@@ -1198,7 +1193,7 @@ stdGee <- function(fit, data, X, x, clusterid, subsetnew){
   V <- (solve(I)%*%J%*%t(solve(I))*ncluster/n^2)[1:nX, 1:nX]
   vcov <- V
    
-  out <- c(out, list(est=est, vcov=vcov))
+  out <- list(call=call, input=input, est=est, vcov=vcov)
 
   #---OUTPUT---
 
@@ -1209,12 +1204,18 @@ stdGee <- function(fit, data, X, x, clusterid, subsetnew){
   
 stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
 
+  call <- match.call()
+  input <- as.list(environment())
+
   #---PREPARATION---
   
   formula <- fit$formula
   weights <- fit$prior.weights
   npar <- length(fit$coef)
-  out <- list(fit=fit, X=X)
+  
+  if(case.control & all(fit$prior.weights==1))
+    warning("stdGlm only gives consistent estimates with case-control data, 
+      if weights are used that corrects for the biased sampling scheme")  
 
   #Delete rows that did not contribute to the model fit,
   #e.g. missing data or not in subset for fit.
@@ -1266,9 +1267,8 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
       }
     }
   }
-
+  input$x <- x
   nX <- length(x)
-  out <- c(out, list(x=x))
  
   #---ESTIMATES OF MEANS AT VALUES SPECIFIED BY x ---
    
@@ -1323,7 +1323,7 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
     V <- (solve(I)%*%J%*%t(solve(I))*ncluster/n^2)[1:nX, 1:nX]
   vcov <- V
    
-  out <- c(out, list(est=est, vcov=vcov))
+  out <- list(call=call, input=input, est=est, vcov=vcov)
 
   #---OUTPUT---
 
@@ -1333,12 +1333,14 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
 }
 
 stdParfrailty <- function(fit, data, X, x, t, clusterid, subsetnew){
+
+  call <- match.call()
+  input <- as.list(environment())
   
   #---PREPARATION---
 
   formula <- fit$formula
   npar <- length(fit$est)
-  out <- list(fit=fit, X=X)
   
   #delete rows that did not contribute to the model fit,
   #e.g. missing data or in subset for fit 
@@ -1396,15 +1398,14 @@ stdParfrailty <- function(fit, data, X, x, t, clusterid, subsetnew){
       }
     }
   }
-  
+  input$x <- x
   nX <- length(x)
-  out <- c(out, list(x=x))
   
   #assign value to t if missing
   if(missing(t))
     t <- end[event==1]
   t <- sort(t)
-  out <- c(out, list(t=t))
+  input$t <- t 
   nt <- length(t)
   
   #preparation
@@ -1479,7 +1480,7 @@ stdParfrailty <- function(fit, data, X, x, t, clusterid, subsetnew){
     
   }
 
-  out <- c(out, list(est=est, vcov=vcov))
+  out <- list(call=call, input=input, est=est, vcov=vcov)
 
 
   #---OUTPUT---
@@ -1503,16 +1504,6 @@ summary.parfrailty <- function(object, CI.type="plain", CI.level=0.95,
                             CI.type=CI.type, CI.level=CI.level)
   colnames(confidence.interval) <- c("Lower limit", "Upper limit")
 
-  ## Score functions for each individual
-  colnames(object$score) <- c("log(\U003B1)", "log(\U003B7)", "log(\U003D5)", 
-    names(as.data.frame(object$X)))
-
-  ## Hessian
-  colnames(object$vcov) <- c("log(\U003B1)", "log(\U003B7)", "log(\U003D5)", 
-    names(as.data.frame(object$X)))
-  rownames(object$vcov) <- c("log(\U003B1)", "log(\U003B7)", "log(\U003D5)", 
-    names(as.data.frame(object$X)))
-
   ans <- list(est=object$est, se=se, zvalue=zvalue, 
     pvalue=pvalue, score=object$score, X=object$X, vcov=object$vcov, 
     call=object$call, formula=object$formula, modelmatrix=object$X, 
@@ -1527,22 +1518,22 @@ summary.parfrailty <- function(object, CI.type="plain", CI.level=0.95,
 
 summary.stdCoxph <- function(object, t, CI.type="plain", CI.level=0.95,
   transform=NULL, contrast=NULL, reference=NULL, ...){
-
+  
   est.all <- object$est
   V.all <- object$vcov
-  nX <- length(object$x)
+  nX <- length(object$input$x)
   if(missing(t))
-    t <- object$t
+    t <- object$input$t
   nt <- length(t)
 
   est.table <- vector(mode="list", length=nt)
   for(j in 1:nt){
 
-    if(min(abs(t[j]-object$t)) > sqrt(.Machine$double.eps))
+    if(min(abs(t[j]-object$input$t)) > sqrt(.Machine$double.eps))
       stop("The standardized survival function is not estimated at t", 
         call.=FALSE)
     else
-      k <- which.min(abs(t[j]-object$t))
+      k <- which.min(abs(t[j]-object$input$t))
 
     est <- est.all[k, ]
     V <- as.matrix(V.all[[k]])
@@ -1564,7 +1555,11 @@ summary.stdCoxph <- function(object, t, CI.type="plain", CI.level=0.95,
     }
 
     if(!is.null(contrast)){
-      referencepos <- match(reference, object$x)
+      if(is.null(reference))
+        stop("When specifying contrast, reference must be specified as well")
+      referencepos <- match(reference, object$input$x)
+      if(is.na(referencepos))
+        stop("reference must be a value in x")
       if(contrast=="difference"){
         dcontrast.dtransform <- diag(nX)
         dcontrast.dtransform[referencepos, ] <- -1
@@ -1587,9 +1582,9 @@ summary.stdCoxph <- function(object, t, CI.type="plain", CI.level=0.95,
     conf.int <- CI(est=est, var=var, CI.type=CI.type, CI.level=CI.level)
     
     temp <- as.matrix(cbind(est, se, conf.int), nrow=length(est), ncol=4)
-    dimnames(temp) <- list(object$x,
+    dimnames(temp) <- list(object$input$x,
       c("Estimate", "Std. Error", paste("lower",CI.level), 
-      paste("upper",CI.level)))
+      paste("upper", CI.level)))
     est.table[[j]] <- temp
 
   }
@@ -1610,7 +1605,7 @@ summary.stdGee <- function(object, CI.type="plain", CI.level=0.95,
 
   est <- object$est
   V <- as.matrix(object$vcov)
-  nX <- length(object$x)
+  nX <- length(object$input$x)
 
   if(!is.null(transform)){
     if(transform=="log"){
@@ -1629,7 +1624,11 @@ summary.stdGee <- function(object, CI.type="plain", CI.level=0.95,
   }
 
   if(!is.null(contrast)){
-    referencepos <- match(reference, object$x)
+    if(is.null(reference))
+      stop("When specifying contrast, reference must be specified as well")
+    referencepos <- match(reference, object$input$x)
+    if(is.na(referencepos))
+      stop("reference must be a value in x")
     if(contrast=="difference"){
       dcontrast.dtransform <- diag(nX)
       dcontrast.dtransform[referencepos, ] <- -1
@@ -1654,7 +1653,7 @@ summary.stdGee <- function(object, CI.type="plain", CI.level=0.95,
   if(is.factor(reference))
     reference <- as.character(reference)
   est.table <- as.matrix(cbind(est, se, conf.int), nrow=length(est), ncol=4)
-  dimnames(est.table) <- list(object$x,
+  dimnames(est.table) <- list(object$input$x,
     c("Estimate", "Std. Error", paste("lower",CI.level), 
     paste("upper",CI.level)))
   out <- c(object, list(est.table=est.table,transform=transform,
@@ -1670,7 +1669,7 @@ summary.stdGlm <- function(object, CI.type="plain", CI.level=0.95,
 
   est <- object$est
   V <- as.matrix(object$vcov)
-  nX <- length(object$x)
+  nX <- length(object$input$x)
 
   if(!is.null(transform)){
     if(transform=="log"){
@@ -1689,7 +1688,11 @@ summary.stdGlm <- function(object, CI.type="plain", CI.level=0.95,
   }
 
   if(!is.null(contrast)){
-    referencepos <- match(reference, object$x)
+    if(is.null(reference))
+      stop("When specifying contrast, reference must be specified as well")
+    referencepos <- match(reference, object$input$x)
+    if(is.na(referencepos))
+      stop("reference must be a value in x")
     if(contrast=="difference"){
       dcontrast.dtransform <- diag(nX)
       dcontrast.dtransform[referencepos, ] <- -1
@@ -1714,7 +1717,7 @@ summary.stdGlm <- function(object, CI.type="plain", CI.level=0.95,
   if(is.factor(reference))
     reference <- as.character(reference)
   est.table <- as.matrix(cbind(est, se, conf.int), nrow=length(est), ncol=4)
-  dimnames(est.table) <- list(object$x,
+  dimnames(est.table) <- list(object$input$x,
     c("Estimate", "Std. Error", paste("lower",CI.level), 
     paste("upper",CI.level)))
   out <- c(object, list(est.table=est.table,transform=transform,

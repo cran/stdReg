@@ -70,6 +70,12 @@ The variance for \eqn{\hat{\theta}(x)} is obtained by the sandwich formula.
 
 \value{
 An object of class \code{"stdGlm"} is a list containing 
+\item{call}{
+  the matched call. 
+  }
+\item{input}{
+  \code{input} is a list containing all input arguments.     
+  }
 \item{est}{
   a vector with length equal to \code{length(x)}, where element \code{j} is equal to 
   \eqn{\hat{\theta}}(\code{x[j]}).

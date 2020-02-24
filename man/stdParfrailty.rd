@@ -24,7 +24,7 @@ stdParfrailty(fit, data, X, x, t, clusterid, subsetnew)
 \arguments{
   \item{fit}{
 an object of class \code{"parfrailty"}, as returned by the \code{parfrailty} function 
-  in the \pkg{stdReg} package..  
+  in the \pkg{stdReg} package.  
 }
   \item{data}{
 a data frame containing the variables in the model. This should be the same 
@@ -76,6 +76,12 @@ The variance for \eqn{\hat{\theta}(t,x)} is obtained by the sandwich formula.
 
 \value{
 An object of class \code{"stdParfrailty"} is a list containing 
+\item{call}{
+  the matched call. 
+  }
+\item{input}{
+  \code{input} is a list containing all input arguments.     
+  }
 \item{est}{
   a matrix with \code{length(t)} rows and \code{length(x)} columns, where the element 
   on row \code{i} and column \code{j} is equal to \eqn{\hat{\theta}}(\code{t[i],x[j]}). 
@@ -89,12 +95,14 @@ An object of class \code{"stdParfrailty"} is a list containing
 }
 
 \references{
-Dahlqwist E., Pawitan Y., Sjolander A. (In press). Regression standardization 
-and attributable fraction estimation with between-within frailty models for 
-clustered survival data. \emph{Statistical Methods in Medical Research}.
 
 Chang I.M., Gelman G., Pagano M. (1982). Corrected group prognostic curves
 and summary statistics. \emph{Journal of Chronic Diseases} \bold{35}, 669-674.
+
+Dahlqwist E., Pawitan Y., Sjolander A. (2019). Regression standardization 
+and attributable fraction estimation with between-within frailty models for 
+clustered survival data. \emph{Statistical Methods in Medical Research} 
+\bold{28}(2), 462-485.
 
 Gail M.H. and Byar D.P. (1986). Variance calculations for direct adjusted survival
 curves, with applications to testing for no treatement effect. \emph{Biometrical Journal}

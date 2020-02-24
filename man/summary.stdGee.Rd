@@ -1,23 +1,23 @@
-\name{summary.stdGlm}
+\name{summary.stdGee}
 
-\alias{summary.stdGlm}
+\alias{summary.stdGee}
 
 \title{
-Summarizes GLM regression standardization fit
+Summarizes GEE regression standardization fit
 }
 
 \description{
-This is a \code{summary} method for class \code{"stdGlm"}.
+This is a \code{summary} method for class \code{"stdGee"}.
 }
 
 \usage{
-\method{summary}{stdGlm}(object, CI.type = "plain", CI.level = 0.95,
+\method{summary}{stdGee}(object, CI.type = "plain", CI.level = 0.95,
   transform = NULL, contrast = NULL, reference = NULL, ...)
 }
 
 \arguments{
   \item{object}{
-an object of class \code{"stdGlm"}.
+an object of class \code{"stdGee"}.
 } 
  \item{CI.type}{
 string, indicating the type of confidence intervals. Either "plain", which
@@ -51,11 +51,11 @@ Arvid Sjolander
 }
 
 \seealso{
-\code{\link{stdGlm}}
+\code{\link{stdGee}}
 }
 
 \examples{
 
-##See documentation for stdGlm
+##See documentation for stdGee
 
 }

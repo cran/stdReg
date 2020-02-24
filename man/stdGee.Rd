@@ -83,6 +83,12 @@ obtained by the sandwich formula.
 
 \value{
 An object of class \code{"stdGee"} is a list containing 
+\item{call}{
+  the matched call. 
+  }
+\item{input}{
+  \code{input} is a list containing all input arguments.     
+  }
 \item{est}{
   a vector with length equal to \code{length(x)}, where element \code{j} is equal to 
   \eqn{\hat{\theta}}(\code{x[j]}).
@@ -102,6 +108,9 @@ equations for the analysis of clustered and longitudinal data.
 
 Martin R.S. (2017). Estimation of average marginal effects in multiplicative 
 unobserved effects panel models. \emph{Economics Letters} \bold{160}, 16-19.
+
+Sjolander A. (2019). Estimation of marginal causal effects in the presence of 
+confounding by cluster. \emph{Biostatistics} doi: 10.1093/biostatistics/kxz054
 }
 
 \author{

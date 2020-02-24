@@ -63,9 +63,10 @@ a matrix containing the cluster-specific contributions to the ML score equations
 }
 
 \references{
-Dahlqwist E., Pawitan Y., Sjolander A. (In press). Regression standardization 
+Dahlqwist E., Pawitan Y., Sjolander A. (2019). Regression standardization 
 and attributable fraction estimation with between-within frailty models for 
-clustered survival data. \emph{Statistical Methods in Medical Research}.
+clustered survival data. \emph{Statistical Methods in Medical Research} 
+\bold{28}(2), 462-485.
  
 Van den Berg G.J., Drepper B. (2016). Inference for shared frailty survival 
 models with left-truncated data. \emph{Econometric Reviews}, 35(6), 1075-1098.
