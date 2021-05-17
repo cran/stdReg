@@ -889,7 +889,6 @@ sandwich <- function(fit, data, weights, t, fit.detail){
 stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){  
 
   call <- match.call()
-  input <- as.list(environment())
 
   #---PREPARATION---
   if(!fit$method=="breslow")
@@ -912,11 +911,12 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
   n <- nrow(data)
   
   #Make new subset if supplied.
-  arguments <- as.list(match.call())
-  if("subsetnew" %in% names(arguments))
-    subsetnew  <- as.numeric(eval(expr=arguments$subsetnew, envir=data))
-  else
-    subsetnew <- rep(1, n)
+  subsetnew <-
+    if(missing(subsetnew))
+      rep(1, n)
+    else
+      as.numeric(eval(substitute(subsetnew), data, parent.frame()))
+  input <- as.list(environment())
 
   if(is.null(fit$weights))
     weights <- rep(1, nrow(data))
@@ -1051,7 +1051,6 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
 stdGee <- function(fit, data, X, x, clusterid, subsetnew){
 
   call <- match.call()
-  input <- as.list(environment())
   
   #---CHECKS---
   
@@ -1073,12 +1072,13 @@ stdGee <- function(fit, data, X, x, clusterid, subsetnew){
   data <- data[match(rownames(m), rownames(data)), ]
   n <- nrow(data)
   
-  #Make new subset if supplied
-  arguments <- as.list(match.call())
-  if("subsetnew" %in% names(arguments))
-    subsetnew  <-  as.numeric(eval(expr=arguments$subsetnew, envir=data))
-  else
-    subsetnew  <- rep(1, n)
+  #Make new subset if supplied.
+  subsetnew <-
+    if(missing(subsetnew))
+      rep(1, n)
+    else
+      as.numeric(eval(substitute(subsetnew), data, parent.frame()))
+  input <- as.list(environment())
   
   ncluster <- length(unique(data[, clusterid]))
   
@@ -1205,7 +1205,6 @@ stdGee <- function(fit, data, X, x, clusterid, subsetnew){
 stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
 
   call <- match.call()
-  input <- as.list(environment())
 
   #---PREPARATION---
   
@@ -1225,12 +1224,13 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
   data <- data[match(rownames(m), rownames(data)), ]
   n <- nrow(data)
   
-  #Make new subset if supplied
-  arguments <- as.list(match.call())
-  if("subsetnew" %in% names(arguments))
-    subsetnew  <-  as.numeric(eval(expr=arguments$subsetnew, envir=data))
-  else
-    subsetnew  <- rep(1, n)
+  #Make new subset if supplied.
+  subsetnew <-
+    if(missing(subsetnew))
+      rep(1, n)
+    else
+      as.numeric(eval(substitute(subsetnew), data, parent.frame()))
+  input <- as.list(environment())
   
   #Can write code more generally with
   #if(missing(clusters)) clusters <- 1:nrow(data)
@@ -1335,7 +1335,6 @@ stdGlm <- function(fit, data, X, x, clusterid, case.control=FALSE, subsetnew){
 stdParfrailty <- function(fit, data, X, x, t, clusterid, subsetnew){
 
   call <- match.call()
-  input <- as.list(environment())
   
   #---PREPARATION---
 
@@ -1349,12 +1348,13 @@ stdParfrailty <- function(fit, data, X, x, t, clusterid, subsetnew){
   data <- data[match(rownames(m), rownames(data)), ]
   n <- nrow(data)
   
-  #make new subset if supplied
-  arguments <- as.list(match.call())
-  if("subsetnew" %in% names(arguments))
-    subsetnew  <- as.numeric(eval(expr=arguments$subsetnew, envir=data))
-  else
-    subsetnew  <- rep(1, n)
+  #Make new subset if supplied.
+  subsetnew <-
+    if(missing(subsetnew))
+      rep(1, n)
+    else
+      as.numeric(eval(substitute(subsetnew), data, parent.frame()))
+  input <- as.list(environment())
  
   #extract end variable and event variable
   Y <- model.extract(frame=model.frame(formula=formula, data=data), 

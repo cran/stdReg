@@ -1,7 +1,19 @@
 \name{NEWS}
 \encoding{UTF-8}
 \title{News for Package \pkg{stdReg}}
+\section{Changes in version 3.4.1 (2021-05-11)}{
+  \subsection{Bug fixes}{
+    \itemize{
+      \item A minor bug has been corrected in the handling of the argument subsetnew.  
+    }
+  } 
+}
 \section{Changes in version 3.4.0 (2019-03-21)}{
+  \subsection{Bug fixes}{
+    \itemize{
+      \item An error has been corrected in the summary.parfrailty function.  
+    }
+  } 
   \subsection{User-visible changes}{
     \itemize{
       \item \code{parfrailty} now returns the \code{data} argument.
