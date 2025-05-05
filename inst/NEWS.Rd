@@ -1,6 +1,15 @@
 \name{NEWS}
 \encoding{UTF-8}
 \title{News for Package \pkg{stdReg}}
+\section{Changes in version 3.4.2 (2025-05-05)}{
+  \subsection{Bug fixes}{
+    \itemize{
+      \item The functionality for computing standard errors in stdCoxph has been updated,
+      to reflect an update that was made in the survival package version 3.2-9
+      for handling centering of binary covariates.  
+    }
+  } 
+}
 \section{Changes in version 3.4.1 (2021-05-11)}{
   \subsection{Bug fixes}{
     \itemize{

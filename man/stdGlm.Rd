@@ -90,7 +90,7 @@ An object of class \code{"stdGlm"} is a list containing
 
 \references{
 Rothman K.J., Greenland S., Lash T.L. (2008). \emph{Modern Epidemiology}, 3rd edition. 
-Lippincott, Williams \& Wilkins.
+Lippincott, Williams and Wilkins.
 
 Sjolander A. (2016). Regression standardization with the R-package stdReg.
 \emph{European Journal of Epidemiology} \bold{31}(6), 563-574.

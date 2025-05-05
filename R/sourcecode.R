@@ -1005,8 +1005,7 @@ stdCoxph <- function(fit, data, X, x, t, clusterid, subsetnew){
       #Note: need to center at factual X, not counterfactual x, 
       #since baseline is computed at mean of factual X.
       m.x <- model.matrix(object=terms(fit), data=data.x)[, -1, drop=FALSE]
-      m <- model.matrix(object=terms(fit), data=data)[, -1, drop=FALSE]
-      m <- matrix(colMeans(m), nrow=nrow(m), ncol=ncol(m), byrow=TRUE)
+      m <- matrix(fit$means, nrow = nrow(m.x), ncol = ncol(m.x), byrow = TRUE)
       m.x <- m.x-m
       tempmat[i, ] <- colMeans(m.x*predX*si[, i]*subsetnew*weights)
     }
